@@ -20,8 +20,8 @@ const app = express();
 // ── CORS ────────────────────────────────────────────
 // Allow React dev server (port 3000) AND production same-origin
 const allowedOrigins = [
-  'http://localhost:3000',   // React dev server
-  'http://localhost:8888',   // Same-origin (production build)
+  'https://final-projectfrontend.onrender.com/',   // React dev server
+  'https://final-project1-d3iz.onrender.com/users',   // Same-origin (production build)
   process.env.CLIENT_URL,    // Optional: set in .env for deployment
 ].filter(Boolean);
 
