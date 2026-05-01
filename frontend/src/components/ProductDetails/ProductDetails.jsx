@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import { addToCart } from "../../app/features/cart/cartSlice";
 import "./product-details.css";
 
+const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+
 const ProductDetails = ({ selectedProduct }) => {
   const dispatch = useDispatch();
 
@@ -22,7 +24,13 @@ const ProductDetails = ({ selectedProduct }) => {
       <Container>
         <Row className="justify-content-center">
           <Col md={6}>
-            <img loading="lazy" src={selectedProduct?.imgUrl} alt="" />
+            <img 
+              loading="lazy" 
+              src={selectedProduct?.imgUrl && selectedProduct.imgUrl.startsWith("/uploads/") 
+                ? `${BASE_URL}${selectedProduct.imgUrl}` 
+                : selectedProduct?.imgUrl} 
+              alt={selectedProduct?.productName} 
+            />
           </Col>
           <Col md={6}>
             <h2>{selectedProduct?.productName}</h2>

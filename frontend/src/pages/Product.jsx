@@ -1,45 +1,57 @@
 import { Fragment, useEffect, useState } from "react";
-import Banner from "../components/Banner/Banner";
-import { Container } from "react-bootstrap";
-import ShopList from "../components/ShopList";
-import { products } from "../utils/products";
+import { Col, Container, Row } from "react-bootstrap";
 import { useParams } from "react-router-dom";
+import Banner from "../components/Banner/Banner";
 import ProductDetails from "../components/ProductDetails/ProductDetails";
 import ProductReviews from "../components/ProductReviews/ProductReviews";
+import ShopList from "../components/ShopList";
 import useWindowScrollToTop from "../hooks/useWindowScrollToTop";
+
+const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
 
 const Product = () => {
   const { id } = useParams();
-  const [selectedProduct, setSelectedProduct] = useState(
-    products.filter((item) => parseInt(item.id) === parseInt(id))[0]
-  );
+  const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    window.scrollTo(0, 0);
-    setSelectedProduct(
-      products.filter((item) => parseInt(item.id) === parseInt(id))[0]
-    );
-    setRelatedProducts(
-      products.filter(
-        (item) =>
-          item.category === selectedProduct?.category &&
-          item.id !== selectedProduct?.id
-      )
-    );
-  }, [selectedProduct, id]);
+    setLoading(true);
+    // Fetch current product
+    fetch(`${BASE_URL}/api/products/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setProduct(data.data);
+          // Fetch related products (same category)
+          return fetch(`${BASE_URL}/api/products?category=${data.data.category}`);
+        }
+      })
+      .then((res) => res && res.json())
+      .then((data) => {
+        if (data && data.success) {
+          setRelatedProducts(data.data.filter((p) => p._id !== id));
+        }
+      })
+      .catch((err) => console.error("Error fetching product details:", err))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   useWindowScrollToTop();
 
+  if (loading) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (!product) return <div className="text-center py-5"><h2>Product Not Found !!</h2></div>;
+
   return (
     <Fragment>
-      <Banner title={selectedProduct?.productName} />
-      <ProductDetails selectedProduct={selectedProduct} />
-      <ProductReviews selectedProduct={selectedProduct} />
+      <Banner title={product.productName} />
+      <ProductDetails selectedProduct={product} />
+      <ProductReviews selectedProduct={product} />
       <section className="related-products">
         <Container>
           <h3>You might also like</h3>
+          <ShopList productItems={relatedProducts} />
         </Container>
-        <ShopList productItems={relatedProducts} />
       </section>
     </Fragment>
   );

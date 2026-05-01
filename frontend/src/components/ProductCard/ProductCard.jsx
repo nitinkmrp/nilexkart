@@ -15,6 +15,8 @@ const ProductCard = ({ title, productItem }) => {
   const [wishlisted, setWishlisted] = useState(false);
   const [wlLoading, setWlLoading] = useState(false);
 
+  const pId = productItem._id || productItem.id;
+
   // Check if this product is already in the user's waitlist on mount
   useEffect(() => {
     if (!currentUser) { setWishlisted(false); return; }
@@ -23,16 +25,16 @@ const ProductCard = ({ title, productItem }) => {
       .then(data => {
         if (data.success) {
           const found = data.data.some(
-            (item) => item.productId === String(productItem.id)
+            (item) => String(item.productId) === String(pId)
           );
           setWishlisted(found);
         }
       })
       .catch(() => {});
-  }, [currentUser, productItem.id]);
+  }, [currentUser, pId]);
 
   const handelClick = () => {
-    router(`/shop/${productItem.id}`);
+    router(`/shop/${pId}`);
   };
 
   const handelAdd = (productItem) => {
@@ -51,7 +53,7 @@ const ProductCard = ({ title, productItem }) => {
       if (wishlisted) {
         // Remove from waitlist
         const res = await fetch(
-          `${BASE_URL}/api/waitlist/${encodeURIComponent(currentUser.email)}/${encodeURIComponent(productItem.id)}`,
+          `${BASE_URL}/api/waitlist/${encodeURIComponent(currentUser.email)}/${encodeURIComponent(pId)}`,
           { method: "DELETE" }
         );
         const data = await res.json();
@@ -68,7 +70,7 @@ const ProductCard = ({ title, productItem }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userEmail: currentUser.email,
-            productId: String(productItem.id),
+            productId: String(pId),
             productName: productItem.productName,
             productImage: productItem.imgUrl || "",
             price: productItem.price || 0,
@@ -100,8 +102,10 @@ const ProductCard = ({ title, productItem }) => {
       <img
         loading="lazy"
         onClick={() => handelClick()}
-        src={productItem.imgUrl}
-        alt=""
+        src={productItem.imgUrl && productItem.imgUrl.startsWith("/uploads/") 
+          ? `${BASE_URL}${productItem.imgUrl}` 
+          : productItem.imgUrl}
+        alt={productItem.productName}
       />
       <button
         className={`product-waitlist-btn ${wishlisted ? "wishlisted" : ""}`}
