@@ -1,0 +1,31 @@
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f3460, #16213e);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.navbar-brand {
+  letter-spacing: -0.3px;
+}
+
+.nav-link {
+  font-weight: 500;
+  color: #333 !important;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #0f3460 !important;
+}
+
+.dropdown-item:active {
+  background-color: #0f3460;
+}
