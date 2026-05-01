@@ -29,7 +29,7 @@ const Profile = () => {
     if (error)          { toast.error(error);            dispatch(clearMessages()); }
   }, [successMessage, error, dispatch]);
 
-  const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:8888";
+  const baseUrl = process.env.REACT_APP_API_URL || "https://final-project1-1-4nc9.onrender.com";
 
   useEffect(() => {
     if (activeTab === "orders" && currentUser) {
