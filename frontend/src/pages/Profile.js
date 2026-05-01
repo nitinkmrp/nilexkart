@@ -6,8 +6,8 @@ import { toast } from "react-toastify";
 import "./Profile.css";
 
 const Profile = () => {
-  const dispatch   = useDispatch();
-  const navigate   = useNavigate();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { currentUser, loading, error, successMessage } = useSelector((s) => s.users);
 
   const [activeTab, setActiveTab] = useState("details");
@@ -26,10 +26,10 @@ const Profile = () => {
 
   useEffect(() => {
     if (successMessage) { toast.success(successMessage); dispatch(clearMessages()); }
-    if (error)          { toast.error(error);            dispatch(clearMessages()); }
+    if (error) { toast.error(error); dispatch(clearMessages()); }
   }, [successMessage, error, dispatch]);
 
-  const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:8888";
+  const baseUrl = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
   useEffect(() => {
     if (activeTab === "orders" && currentUser) {
@@ -127,19 +127,19 @@ const Profile = () => {
 
             {/* Tabs Navigation */}
             <div className="profile-tabs mb-4">
-              <button 
+              <button
                 className={`profile-tab ${activeTab === "details" ? "active" : ""}`}
                 onClick={() => setActiveTab("details")}
               >
                 Account Details
               </button>
-              <button 
+              <button
                 className={`profile-tab ${activeTab === "orders" ? "active" : ""}`}
                 onClick={() => { setActiveTab("orders"); setEditing(false); }}
               >
                 My Orders
               </button>
-              <button 
+              <button
                 className={`profile-tab ${activeTab === "waitlist" ? "active" : ""}`}
                 onClick={() => { setActiveTab("waitlist"); setEditing(false); }}
               >

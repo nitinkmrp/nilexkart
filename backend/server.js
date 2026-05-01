@@ -22,6 +22,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',   // React dev server
   'http://localhost:8888',   // Same-origin (production build)
+  'https://final-projectfrontend.onrender.com',
+  'https://final-project1-d3iz.onrender.com',
   process.env.CLIENT_URL,    // Optional: set in .env for deployment
 ].filter(Boolean);
 
