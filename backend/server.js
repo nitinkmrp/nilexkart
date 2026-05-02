@@ -20,9 +20,10 @@ const app = express();
 // ── CORS ────────────────────────────────────────────
 // Allow React dev server (port 3000) AND production same-origin
 const allowedOrigins = [
-  'https://final-projectfrontend.onrender.com',   // React dev server
-  'https://final-project1-d3iz.onrender.com/users',   // Same-origin (production build)
-  process.env.CLIENT_URL,    // Optional: set in .env for deployment
+  'http://localhost:3000',                         // React dev server
+  'http://localhost:8888',                         // Same-origin (production build)
+  'https://final-project1-d3iz.onrender.com',     // Production backend (same-origin)
+  process.env.CLIENT_URL,                          // Frontend URL from .env
 ].filter(Boolean);
 
 app.use(cors({
@@ -92,5 +93,5 @@ const PORT = process.env.PORT || 8888;
 app.listen(PORT, () => {
   console.log(`\n🚀  Backend API    →  http://localhost:${PORT}/api/users`);
   console.log(`🌐  React dev      →  http://localhost:3000  (run: npm start)`);
-  console.log(`📋  Health check   →  http://localhost:${PORT}/health\n`);
+  console.log(`📋  Health check   → http://localhost:${PORT}/health\n`);
 });
