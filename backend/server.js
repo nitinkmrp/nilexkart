@@ -19,9 +19,11 @@ const app = express();
 
 // ── CORS ────────────────────────────────────────────
 const allowedOrigins = [
-  'http://localhost:3000',      // React dev server
-  'http://localhost:8888',      // Local backend
-  process.env.CLIENT_URL,       // Frontend URL — set in Render dashboard env vars
+  'http://localhost:3000',        // React dev server
+  'http://localhost:8888',        // Local backend
+  'https://nilex.in',             // Production custom domain
+  'https://www.nilex.in',         // Production custom domain (www)
+  process.env.CLIENT_URL,         // Frontend URL — set in Render dashboard env vars
 ].filter(Boolean);
 
 app.use(cors({
