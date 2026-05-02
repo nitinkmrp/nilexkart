@@ -7,7 +7,7 @@ import ProductReviews from "../components/ProductReviews/ProductReviews";
 import ShopList from "../components/ShopList";
 import useWindowScrollToTop from "../hooks/useWindowScrollToTop";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const Product = () => {
   const { id } = useParams();

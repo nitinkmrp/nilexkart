@@ -18,19 +18,19 @@ const __dirname  = path.dirname(__filename);
 const app = express();
 
 // ── CORS ────────────────────────────────────────────
-// Allow React dev server (port 3000) AND production same-origin
 const allowedOrigins = [
-  'http://localhost:3000',   // React dev server
-  'http://localhost:8888',   // Same-origin (production build)
-  'https://final-projectfrontend.onrender.com',
-  'https://final-project1-d3iz.onrender.com',
-  process.env.CLIENT_URL,    // Optional: set in .env for deployment
+  'http://localhost:3000',      // React dev server
+  'http://localhost:8888',      // Local backend
+  process.env.CLIENT_URL,       // Frontend URL — set in Render dashboard env vars
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (Postman, curl, mobile)
+    // Allow requests with no origin (Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
+    // Allow any *.onrender.com subdomain (covers all Render-hosted frontends)
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // Allow explicitly whitelisted origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS blocked: ${origin}`));
   },
@@ -38,12 +38,6 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// ── Serve React production build ─────────────────────
-// Only used when you run: npm run build  inside the React project
-// and copy the build/ folder next to backend/
-const reactBuildPath = path.join(__dirname, '../react-build');
-app.use(express.static(reactBuildPath));
 
 // ── Serve uploaded product images ────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -72,27 +66,27 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({ message: `API route ${req.originalUrl} not found` });
 });
 
-// ── React fallback (for production build) ───────────
-app.get('*', (req, res) => {
-  const indexPath = path.join(reactBuildPath, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      // React build not found — just return API info
-      res.status(200).json({
-        message: 'UserBase API is running. Start React dev server on port 3000.',
-        api: `http://localhost:${process.env.PORT || 8888}/api/users`,
-      });
-    }
+// ── Root ─────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'UserBase API is running 🚀',
+    endpoints: {
+      health:   '/health',
+      users:    '/api/users',
+      products: '/api/products',
+      payment:  '/api/payment',
+    },
   });
 });
 
 // ── Global error handler ────────────────────────────
 app.use(errorHandler);
 
-// ── Start server ────────────────────────────────────
+// ── Start server ─────────────────────────────────────
+// Render requires the server to bind to 0.0.0.0, not just localhost
 const PORT = process.env.PORT || 8888;
-app.listen(PORT, () => {
-  console.log(`\n🚀  Backend API    →  http://localhost:${PORT}/api/users`);
-  console.log(`🌐  React dev      →  http://localhost:3000  (run: npm start)`);
-  console.log(`📋  Health check   →  http://localhost:${PORT}/health\n`);
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀  Backend API    →  http://0.0.0.0:${PORT}/api/users`);
+  console.log(`📋  Health check   →  http://0.0.0.0:${PORT}/health\n`);
 });

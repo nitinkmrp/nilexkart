@@ -4,7 +4,7 @@ import Section from "../components/Section";
 import SliderHome from "../components/Slider";
 import useWindowScrollToTop from "../hooks/useWindowScrollToTop";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const Home = () => {
   const [liveProducts, setLiveProducts] = useState([]);

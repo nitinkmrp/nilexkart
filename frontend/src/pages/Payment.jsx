@@ -51,7 +51,7 @@ const Payment = () => {
 
     try {
       // 1. Create order on our backend
-      const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:8888";
+      const baseUrl = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
       const orderRes = await fetch(`${baseUrl}/api/payment/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

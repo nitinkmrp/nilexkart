@@ -6,7 +6,7 @@ import ShopList from "../components/ShopList";
 import Banner from "../components/Banner/Banner";
 import useWindowScrollToTop from "../hooks/useWindowScrollToTop";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const Shop = () => {
   const [allProducts, setAllProducts] = useState([]);

@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "../../app/features/cart/cartSlice";
 import { useState, useEffect } from "react";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const ProductCard = ({ title, productItem }) => {
   const dispatch = useDispatch();

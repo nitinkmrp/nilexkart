@@ -1,5 +1,5 @@
 // Base URL — change to your backend address if different
-const BASE = process.env.REACT_APP_API_URL || "http://localhost:8800";
+const BASE = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 async function apiFetch(path, opts = {}) {
   const res = await fetch(`${BASE}${path}`, {

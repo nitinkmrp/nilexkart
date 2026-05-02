@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "./AdminProducts.css";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const CATEGORIES = ["sofa", "chair", "mobile", "watch", "wireless", "other"];
 
