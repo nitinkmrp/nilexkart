@@ -1,5 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import adminKeyGuard from '../middleware/adminKeyGuard.js';
 
 const router = express.Router();
 
@@ -13,8 +14,8 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-// ── GET all users ────────────────────────────────────
-router.get('/', async (req, res, next) => {
+// ── GET all users (admin only) ───────────────────────
+router.get('/', adminKeyGuard, async (req, res, next) => {
   try {
     const users = await User.find().select('-password');
     res.json({ success: true, count: users.length, data: users });
@@ -48,8 +49,8 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// ── PUT update user ──────────────────────────────────
-router.put('/:email', async (req, res, next) => {
+// ── PUT update user (admin only) ─────────────────────
+router.put('/:email', adminKeyGuard, async (req, res, next) => {
   try {
     const user = await User.findOneAndUpdate(
       { email: req.params.email },
@@ -63,8 +64,8 @@ router.put('/:email', async (req, res, next) => {
   }
 });
 
-// ── DELETE user ──────────────────────────────────────
-router.delete('/:email', async (req, res, next) => {
+// ── DELETE user (admin only) ──────────────────────────
+router.delete('/:email', adminKeyGuard, async (req, res, next) => {
   try {
     const user = await User.findOneAndDelete({ email: req.params.email });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });

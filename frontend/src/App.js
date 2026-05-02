@@ -6,6 +6,7 @@ import Footer from "./components/Footer/Footer";
 import Loader from "./components/Loader/Loader";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import AdminGuard from "./components/AdminGuard";
 
 // Existing pages
 const Home    = lazy(() => import("./pages/Home"));
@@ -45,8 +46,8 @@ function App() {
 
           {/* New routes */}
           <Route path="/profile"            element={<Profile />} />
-          <Route path="/admin/users"        element={<AdminUsers />} />
-          <Route path="/admin/products"     element={<AdminProducts />} />
+          <Route path="/admin/users"        element={<AdminGuard><AdminUsers /></AdminGuard>} />
+          <Route path="/admin/products"     element={<AdminGuard><AdminProducts /></AdminGuard>} />
         </Routes>
         <Footer />
       </Router>

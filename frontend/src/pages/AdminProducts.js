@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "./AdminProducts.css";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
+const BASE_URL   = process.env.REACT_APP_API_URL  || "https://final-project1-d3iz.onrender.com";
+const ADMIN_KEY  = process.env.REACT_APP_ADMIN_KEY || "";
 
 const CATEGORIES = ["sofa", "chair", "mobile", "watch", "wireless", "other"];
 
@@ -31,7 +32,7 @@ const AdminProducts = () => {
   const [activeAdminTab, setActiveAdminTab] = useState("products");
   const fileInputRef = useRef();
 
-  // Redirect if not logged in
+  // Redirect if not logged in or not admin
   useEffect(() => {
     if (!currentUser) navigate("/");
   }, [currentUser, navigate]);
@@ -104,7 +105,7 @@ const AdminProducts = () => {
 
       const url    = editTarget ? `${BASE_URL}/api/products/${editTarget._id}` : `${BASE_URL}/api/products`;
       const method = editTarget ? "PUT" : "POST";
-      const res    = await fetch(url, { method, body: fd });
+      const res    = await fetch(url, { method, body: fd, headers: { "x-admin-key": ADMIN_KEY } });
       const data   = await res.json();
 
       if (data.success) {
@@ -122,7 +123,10 @@ const AdminProducts = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res  = await fetch(`${BASE_URL}/api/products/${deleteTarget._id}`, { method: "DELETE" });
+      const res  = await fetch(`${BASE_URL}/api/products/${deleteTarget._id}`, {
+        method: "DELETE",
+        headers: { "x-admin-key": ADMIN_KEY },
+      });
       const data = await res.json();
       if (data.success) {
         toast.success("Product deleted");
@@ -140,7 +144,7 @@ const AdminProducts = () => {
     try {
       const res  = await fetch(`${BASE_URL}/api/products/${id}/stock`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
         body: JSON.stringify({ stock: newStock }),
       });
       const data = await res.json();
