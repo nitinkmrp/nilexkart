@@ -26,9 +26,7 @@ const ProductDetails = ({ selectedProduct }) => {
           <Col md={6}>
             <img 
               loading="lazy" 
-              src={selectedProduct?.imgUrl && selectedProduct.imgUrl.startsWith("/uploads/") 
-                ? `${BASE_URL}${selectedProduct.imgUrl}` 
-                : selectedProduct?.imgUrl} 
+              src={selectedProduct?.imgUrl || ''} 
               alt={selectedProduct?.productName} 
             />
           </Col>

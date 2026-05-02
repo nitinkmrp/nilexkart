@@ -1,47 +1,22 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import { upload, cloudinary } from '../config/cloudinary.js';
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
-// ── Uploads folder ──────────────────────────────────
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-// ── Multer config (disk storage) ────────────────────
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-  fileFilter: (_req, file, cb) => {
-    if (/image\/(jpeg|jpg|png|webp|gif)/.test(file.mimetype)) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
-  },
-});
 
 // ── Product Schema ──────────────────────────────────
 const productSchema = new mongoose.Schema(
   {
-    productName: { type: String, required: true, trim: true },
-    category:    { type: String, required: true, trim: true },
-    price:       { type: Number, required: true, min: 0 },
-    discount:    { type: Number, default: 0, min: 0, max: 100 },
-    stock:       { type: Number, default: 0, min: 0 },
-    shortDesc:   { type: String, default: '' },
-    description: { type: String, default: '' },
-    imgUrl:      { type: String, default: '' },
-    avgRating:   { type: Number, default: 0 },
+    productName:  { type: String, required: true, trim: true },
+    category:     { type: String, required: true, trim: true },
+    price:        { type: Number, required: true, min: 0 },
+    discount:     { type: Number, default: 0, min: 0, max: 100 },
+    stock:        { type: Number, default: 0, min: 0 },
+    shortDesc:    { type: String, default: '' },
+    description:  { type: String, default: '' },
+    imgUrl:       { type: String, default: '' },   // full Cloudinary HTTPS URL
+    publicId:     { type: String, default: '' },   // Cloudinary public_id for deletion
+    avgRating:    { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -72,24 +47,28 @@ router.get('/:id', async (req, res, next) => {
 // ── POST /api/products — create product (with optional image) ──
 router.post('/', upload.single('image'), async (req, res, next) => {
   try {
-    const { productName, category, price, discount, stock, shortDesc, description, avgRating } = req.body;
+    const { productName, category, price, discount, stock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
+
     if (!productName || !category || price === undefined) {
       return res.status(400).json({ success: false, message: 'productName, category, and price are required' });
     }
 
-    let imgUrl = req.body.imgUrl || '';
+    // Prefer uploaded file (Cloudinary), fall back to a pasted URL
+    let imgUrl  = bodyImgUrl || '';
+    let publicId = '';
     if (req.file) {
-      imgUrl = `/uploads/${req.file.filename}`;
+      imgUrl   = req.file.path;        // Cloudinary HTTPS URL
+      publicId = req.file.filename;    // Cloudinary public_id
     }
 
     const product = await Product.create({
       productName, category,
-      price: Number(price),
-      discount: Number(discount || 0),
-      stock: Number(stock || 0),
-      shortDesc, description,
-      imgUrl,
-      avgRating: Number(avgRating || 0),
+      price:      Number(price),
+      discount:   Number(discount  || 0),
+      stock:      Number(stock     || 0),
+      shortDesc,  description,
+      imgUrl,     publicId,
+      avgRating:  Number(avgRating || 0),
     });
     res.status(201).json({ success: true, data: product });
   } catch (err) { next(err); }
@@ -102,18 +81,18 @@ router.put('/:id', upload.single('image'), async (req, res, next) => {
     if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
 
     const updates = { ...req.body };
-    if (updates.price)    updates.price    = Number(updates.price);
-    if (updates.discount) updates.discount = Number(updates.discount);
-    if (updates.stock)    updates.stock    = Number(updates.stock);
+    if (updates.price)     updates.price     = Number(updates.price);
+    if (updates.discount)  updates.discount  = Number(updates.discount);
+    if (updates.stock)     updates.stock     = Number(updates.stock);
     if (updates.avgRating) updates.avgRating = Number(updates.avgRating);
 
     if (req.file) {
-      // Delete old uploaded image if it exists
-      if (existing.imgUrl && existing.imgUrl.startsWith('/uploads/')) {
-        const oldPath = path.join(__dirname, '..', existing.imgUrl);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      // Delete old Cloudinary image if it was uploaded (has a publicId)
+      if (existing.publicId) {
+        try { await cloudinary.uploader.destroy(existing.publicId); } catch (_) {}
       }
-      updates.imgUrl = `/uploads/${req.file.filename}`;
+      updates.imgUrl   = req.file.path;      // new Cloudinary HTTPS URL
+      updates.publicId = req.file.filename;  // new Cloudinary public_id
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -147,10 +126,10 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    // Clean up uploaded image
-    if (product.imgUrl && product.imgUrl.startsWith('/uploads/')) {
-      const imgPath = path.join(__dirname, '..', product.imgUrl);
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+
+    // Delete image from Cloudinary if it was cloud-hosted
+    if (product.publicId) {
+      try { await cloudinary.uploader.destroy(product.publicId); } catch (_) {}
     }
     res.json({ success: true, message: 'Product deleted' });
   } catch (err) { next(err); }

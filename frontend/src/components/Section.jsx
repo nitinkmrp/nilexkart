@@ -12,7 +12,7 @@ const Section = ({ title, bgColor, productItems }) => {
           {productItems.map((productItem) => {
             return (
               <ProductCard
-                key={productItem.id}
+                key={productItem._id || productItem.id}
                 title={title}
                 productItem={productItem}
               />

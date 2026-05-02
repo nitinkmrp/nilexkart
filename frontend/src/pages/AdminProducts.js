@@ -78,7 +78,7 @@ const AdminProducts = () => {
       avgRating: p.avgRating || 0,
     });
     setImageFile(null);
-    setImagePreview(p.imgUrl ? (p.imgUrl.startsWith("/uploads/") ? `${BASE_URL}${p.imgUrl}` : p.imgUrl) : null);
+    setImagePreview(p.imgUrl || null);
     setEditTarget(p);
     setShowForm(true);
   };
@@ -157,10 +157,7 @@ const AdminProducts = () => {
     return                     <span className="ap-badge ap-badge-ok">In Stock</span>;
   };
 
-  const imgSrc = (p) =>
-    p.imgUrl
-      ? (p.imgUrl.startsWith("/uploads/") ? `${BASE_URL}${p.imgUrl}` : p.imgUrl)
-      : null;
+  const imgSrc = (p) => p.imgUrl || null;
 
   if (!currentUser) return null;
 

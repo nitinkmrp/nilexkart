@@ -102,9 +102,7 @@ const ProductCard = ({ title, productItem }) => {
       <img
         loading="lazy"
         onClick={() => handelClick()}
-        src={productItem.imgUrl && productItem.imgUrl.startsWith("/uploads/") 
-          ? `${BASE_URL}${productItem.imgUrl}` 
-          : productItem.imgUrl}
+        src={productItem.imgUrl || ''}
         alt={productItem.productName}
       />
       <button
