@@ -55,11 +55,18 @@ const NavBar = () => {
                 <Link className="nav-link" to="/shop" onClick={() => setMenuOpen(false)}>Shop</Link>
               </li>
               {isLoggedIn && currentUser?.role === "admin" && (
-                <li className="nav-item">
-                  <Link className="nav-link" to="/admin/users" onClick={() => setMenuOpen(false)}>
-                    Users
-                  </Link>
-                </li>
+                <>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/admin/products" onClick={() => setMenuOpen(false)}>
+                      📦 Products
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/admin/users" onClick={() => setMenuOpen(false)}>
+                      👥 Users
+                    </Link>
+                  </li>
+                </>
               )}
             </ul>
 
@@ -93,9 +100,14 @@ const NavBar = () => {
                       <i className="fa fa-user me-2" /> My Profile
                     </Dropdown.Item>
                     {currentUser?.role === "admin" && (
-                      <Dropdown.Item as={Link} to="/admin/users">
-                        <i className="fa fa-users me-2" /> Manage Users
-                      </Dropdown.Item>
+                      <>
+                        <Dropdown.Item as={Link} to="/admin/products">
+                          <i className="fa fa-box me-2" /> Manage Products
+                        </Dropdown.Item>
+                        <Dropdown.Item as={Link} to="/admin/users">
+                          <i className="fa fa-users me-2" /> Manage Users
+                        </Dropdown.Item>
+                      </>
                     )}
                     <Dropdown.Divider />
                     <Dropdown.Item className="text-danger" onClick={handleLogout}>
