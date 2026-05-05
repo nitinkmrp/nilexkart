@@ -44,6 +44,8 @@ services:
         value: https://final-project1-d3iz.onrender.com
       - key: REACT_APP_RAZORPAY_KEY_ID
         value: rzp_test_Sk5c5WX2BfoT5L
+      - key: REACT_APP_ADMIN_KEY
+        value: nilex_admin_2026_S3cure!
     routes:
       # SPA fallback — all routes serve index.html
       - type: rewrite
