@@ -33,7 +33,7 @@ const NavBar = () => {
         <div className="container">
           {/* Brand */}
           <Link className="navbar-brand fw-bold" to="/" style={{ color: "#0f3460", fontSize: 22 }}>
-            🛍 ShopEase
+            🛍 NilexKart
           </Link>
 
           {/* Mobile toggler */}
