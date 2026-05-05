@@ -18,7 +18,9 @@ const Payment = lazy(() => import("./pages/Payment"));
 // New pages
 const Profile      = lazy(() => import("./pages/Profile"));
 const AdminUsers   = lazy(() => import("./pages/AdminUsers"));
-const AdminProducts = lazy(() => import("./pages/AdminProducts"));
+const AdminProducts    = lazy(() => import("./pages/AdminProducts"));
+const AdminCategories  = lazy(() => import("./pages/AdminCategories"));
+const AdminBills       = lazy(() => import("./pages/AdminBills"));
 
 function App() {
   return (
@@ -48,6 +50,8 @@ function App() {
           <Route path="/profile"            element={<Profile />} />
           <Route path="/admin/users"        element={<AdminGuard><AdminUsers /></AdminGuard>} />
           <Route path="/admin/products"     element={<AdminGuard><AdminProducts /></AdminGuard>} />
+          <Route path="/admin/categories"   element={<AdminGuard><AdminCategories /></AdminGuard>} />
+          <Route path="/admin/bills"         element={<AdminGuard><AdminBills /></AdminGuard>} />
         </Routes>
         <Footer />
       </Router>

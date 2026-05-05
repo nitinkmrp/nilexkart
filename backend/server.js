@@ -5,7 +5,9 @@ import dbConnect from './config/db.js';
 import userRoutes from './routes/user.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import waitlistRoutes from './routes/waitlist.routes.js';
-import productRoutes from './routes/products.routes.js';
+import productRoutes    from './routes/products.routes.js';
+import categoryRoutes  from './routes/categories.routes.js';
+import billRoutes      from './routes/bills.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -43,7 +45,9 @@ dbConnect();
 app.use('/api/users', userRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/waitlist', waitlistRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api/products',   productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/bills',      billRoutes);
 
 // ── Health check ────────────────────────────────────
 app.get('/health', (req, res) => {

@@ -1,11 +1,12 @@
 footer {
   background-color: #0f3460;
-  padding: 80px 0;
+  padding: 70px 0 0;
   color: #fff;
 }
 
 footer .box {
   padding: 0 20px;
+  margin-bottom: 40px;
 }
 
 footer h1 {
@@ -17,13 +18,19 @@ footer h1 {
 
 footer .logo {
   color: white;
-  display:flex;
-  align-items:center;
-  gap:5px;
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 16px;
 }
+
 footer h2 {
-  font-size: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  color: #fff;
 }
 
 footer .row {
@@ -31,20 +38,140 @@ footer .row {
 }
 
 footer p {
-  font-size: 16px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-footer h2 {
-  margin-bottom: 20px;
+  font-size: 14px;
+  margin-bottom: 18px;
+  opacity: 0.6;
+  line-height: 1.7;
 }
 
 footer ul {
   padding: 0;
+  list-style: none;
 }
 
 footer li {
   margin-bottom: 10px;
-  opacity: 0.5;
+  opacity: 0.65;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+footer li:hover {
+  opacity: 1;
+}
+
+/* Links inside footer */
+footer a {
+  color: #fff;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+footer a:hover {
+  opacity: 1;
+  text-decoration: underline;
+  color: #a8d8f0;
+}
+
+/* ── Contact list with icons ─────────────────────────── */
+.contact-list {
+  list-style: none;
+  padding: 0;
+}
+
+.contact-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  opacity: 0.75;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.contact-list li ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #a8d8f0;
+}
+
+.contact-list a {
+  color: #a8d8f0;
+}
+
+/* ── Social icons row ────────────────────────────────── */
+.footer-social {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.footer-social a {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  opacity: 0.75;
+  transition: all 0.25s;
+}
+
+.footer-social a:hover {
+  background: rgba(255,255,255,0.15);
+  opacity: 1;
+  text-decoration: none;
+}
+
+/* ── Embedded map ─────────────────────────────────────── */
+.footer-map {
+  margin-top: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.footer-map iframe {
+  width: 100%;
+  height: 160px;
+  border: none;
+  display: block;
+}
+
+/* ── Bottom bar ──────────────────────────────────────── */
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-bottom p {
+  margin: 0;
+  opacity: 0.55;
+  font-size: 13px;
+}
+
+.footer-map-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #a8d8f0 !important;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.footer-map-link:hover {
+  opacity: 1;
+  text-decoration: underline !important;
+}
+
+.footer-map-link ion-icon {
+  font-size: 16px;
 }
