@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -51,8 +51,15 @@ const AdminBills = () => {
   const [selectedCustId,    setSelectedCustId]    = useState("");
   const [custSearch,        setCustSearch]        = useState("");
   const [showCustDropdown,  setShowCustDropdown]  = useState(false);
+  // ── Camera state ───────────────────────────────────
+  const [showCamera,        setShowCamera]        = useState(false);
+  const [camStream,         setCamStream]         = useState(null);
+  const [camFacing,         setCamFacing]         = useState("environment"); // 'environment'=rear, 'user'=front
+  const [camError,          setCamError]          = useState("");
   const fileRef    = useRef();
   const custRef    = useRef();
+  const videoRef   = useRef();
+  const canvasRef  = useRef();
 
   // Redirect non-admins
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
@@ -122,6 +129,72 @@ const AdminBills = () => {
     setCustSearch("");
     setForm((prev) => ({ ...prev, customerName: "", customerEmail: "", customerPhone: "" }));
   };
+
+  // ── Camera helpers ─────────────────────────────────
+  const stopCamera = useCallback(() => {
+    if (camStream) {
+      camStream.getTracks().forEach((t) => t.stop());
+      setCamStream(null);
+    }
+    setShowCamera(false);
+    setCamError("");
+  }, [camStream]);
+
+  const startCamera = useCallback(async (facing = camFacing) => {
+    setCamError("");
+    // Stop any existing stream first
+    if (camStream) camStream.getTracks().forEach((t) => t.stop());
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      setCamStream(stream);
+      setCamFacing(facing);
+      setShowCamera(true);
+      // Attach stream to video element after state update
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+      }, 80);
+    } catch (err) {
+      const msg = err.name === "NotAllowedError"
+        ? "Camera permission denied. Please allow camera access."
+        : err.name === "NotFoundError"
+        ? "No camera found on this device."
+        : `Camera error: ${err.message}`;
+      setCamError(msg);
+      toast.error(msg);
+    }
+  }, [camStream, camFacing]);
+
+  const snapPhoto = useCallback(() => {
+    const video  = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `receipt-${Date.now()}.jpg`, { type: "image/jpeg" });
+      setReceiptFile(file);
+      setReceiptPrev(URL.createObjectURL(blob));
+      stopCamera();
+    }, "image/jpeg", 0.92);
+  }, [stopCamera]);
+
+  const switchFacing = useCallback(() => {
+    const next = camFacing === "environment" ? "user" : "environment";
+    startCamera(next);
+  }, [camFacing, startCamera]);
+
+  // Stop camera when modal closes
+  useEffect(() => {
+    if (!showForm && camStream) stopCamera();
+  }, [showForm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Helpers ────────────────────────────────────────
   const openCreate = () => {
@@ -611,32 +684,60 @@ const AdminBills = () => {
                     placeholder="Any additional notes about this transaction…" />
                 </div>
 
-                {/* Receipt Upload */}
+                {/* ── Receipt / Camera Capture ── */}
                 <div className="bill-form-full">
                   <label className="bill-form-label">Receipt / Txn Snapshot</label>
-                  <div className="receipt-upload-area" onClick={() => fileRef.current?.click()}>
-                    {receiptPrev ? (
-                      <img src={receiptPrev} alt="receipt preview" className="receipt-preview-img" />
-                    ) : (
-                      <>
-                        <span className="receipt-upload-icon">📸</span>
-                        <span style={{ fontSize: 14, color: "#666" }}>Click to upload receipt image</span>
-                        <div className="receipt-upload-hint">JPG, PNG, PDF screenshot — max 5MB</div>
-                      </>
-                    )}
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: "none" }}
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                  {receiptPrev && (
-                    <button type="button" style={{ fontSize: 12, background: "none", border: "none", color: "#dc2626", cursor: "pointer", marginTop: 6 }}
-                      onClick={() => { setReceiptFile(null); setReceiptPrev(null); }}>
-                      Remove receipt
-                    </button>
+
+                  {/* ── Live Camera Widget ── */}
+                  {showCamera ? (
+                    <div className="cam-widget">
+                      <video ref={videoRef} className="cam-video" autoPlay playsInline muted />
+                      <canvas ref={canvasRef} style={{ display: "none" }} />
+                      <div className="cam-controls">
+                        <button type="button" className="cam-snap-btn" onClick={snapPhoto}>
+                          📷 Capture
+                        </button>
+                        <button type="button" className="cam-switch-btn" onClick={switchFacing} title="Switch camera">
+                          🔄
+                        </button>
+                        <button type="button" className="cam-cancel-btn" onClick={stopCamera}>
+                          ✕ Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : receiptPrev ? (
+                    /* ── Captured / Uploaded Preview ── */
+                    <div className="cam-preview-wrap">
+                      <img src={receiptPrev} alt="receipt preview" className="cam-preview-img" />
+                      <div className="cam-preview-actions">
+                        <button type="button" className="cam-retake-btn" onClick={() => startCamera()}>
+                          📷 Retake
+                        </button>
+                        <button type="button" className="cam-remove-btn"
+                          onClick={() => { setReceiptFile(null); setReceiptPrev(null); }}>
+                          🗑️ Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Empty state — choose mode ── */
+                    <div className="cam-empty">
+                      {camError && <div className="cam-error">{camError}</div>}
+                      <button type="button" className="cam-open-btn" onClick={() => startCamera()}>
+                        📷 Open Camera
+                      </button>
+                      <span className="cam-or">or</span>
+                      <button type="button" className="cam-gallery-btn" onClick={() => fileRef.current?.click()}>
+                        🖼️ Choose from Gallery
+                      </button>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={handleFileChange}
+                      />
+                    </div>
                   )}
                 </div>
 

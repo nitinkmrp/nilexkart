@@ -97,6 +97,9 @@ const AdminCategories = () => {
         <NavLink to="/admin/bills"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>
           🧾 Bills
         </NavLink>
+        <NavLink to="/admin/customers"   className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>
+          👤 Customers
+        </NavLink>
       </div>
 
       <div className="container">

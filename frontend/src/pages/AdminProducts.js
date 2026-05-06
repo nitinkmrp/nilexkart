@@ -1,22 +1,28 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
+import { fetchCategories } from "../app/categorySlice";
 import "./AdminProducts.css";
 
 const BASE_URL   = process.env.REACT_APP_API_URL  || "https://final-project1-d3iz.onrender.com";
 const ADMIN_KEY  = process.env.REACT_APP_ADMIN_KEY || "";
 
-const CATEGORIES = ["sofa", "chair", "mobile", "watch", "wireless", "other"];
-
 const EMPTY_FORM = {
-  productName: "", category: "sofa", price: "", discount: "0",
+  productName: "", category: "", price: "", discount: "0",
   stock: "0", shortDesc: "", description: "", imgUrl: "", avgRating: "4.5",
 };
 
 const AdminProducts = () => {
-  const navigate = useNavigate();
+  const dispatch    = useDispatch();
+  const navigate    = useNavigate();
   const currentUser = useSelector((s) => s.users.currentUser);
+  const { categories: dbCategories } = useSelector((s) => s.categories);
+
+  // Build category name list from DB; fall back to slugs already on products
+  const categoryNames = dbCategories
+    .filter((c) => c.isActive)
+    .map((c) => c.name);
 
   const [products, setProducts]         = useState([]);
   const [loading, setLoading]           = useState(false);
@@ -29,13 +35,9 @@ const AdminProducts = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving]             = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [activeAdminTab, setActiveAdminTab] = useState("products");
   const fileInputRef = useRef();
 
-  // Redirect if not logged in or not admin
-  useEffect(() => {
-    if (!currentUser) navigate("/");
-  }, [currentUser, navigate]);
+  useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -47,7 +49,15 @@ const AdminProducts = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => {
+    fetchProducts();
+    dispatch(fetchCategories());   // always pull latest categories
+  }, [dispatch]);
+
+  // Derive unique category values that exist on products (as fallback)
+  const productCats = [...new Set(products.map((p) => p.category).filter(Boolean))];
+  // Final list: prefer DB categories, fallback to whatever is on products
+  const allCategoryNames = categoryNames.length > 0 ? categoryNames : productCats;
 
   // Filtered list
   const filtered = products.filter((p) => {
@@ -63,7 +73,7 @@ const AdminProducts = () => {
 
   // ── Form helpers ─────────────────────────────────────
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, category: allCategoryNames[0] || "" });
     setEditTarget(null);
     setImageFile(null);
     setImagePreview(null);
@@ -171,18 +181,11 @@ const AdminProducts = () => {
 
         {/* ── Admin Nav Tabs ── */}
         <div className="ap-nav-tabs mb-4">
-          <button
-            className={`ap-nav-tab ${activeAdminTab === "products" ? "active" : ""}`}
-            onClick={() => setActiveAdminTab("products")}
-          >
-            📦 Product Stock
-          </button>
-          <button
-            className={`ap-nav-tab ${activeAdminTab === "users" ? "active" : ""}`}
-            onClick={() => { navigate("/admin/users"); }}
-          >
-            👥 Users
-          </button>
+          <NavLink to="/admin/users"       className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>👥 Users</NavLink>
+          <NavLink to="/admin/products"    className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🛍️ Products</NavLink>
+          <NavLink to="/admin/categories"  className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🗂️ Categories</NavLink>
+          <NavLink to="/admin/bills"       className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🧾 Bills</NavLink>
+          <NavLink to="/admin/customers"   className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
         </div>
 
         {/* ── Header ── */}
@@ -235,7 +238,7 @@ const AdminProducts = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
           <div className="ap-cat-pills">
-            {["all", ...CATEGORIES].map((c) => (
+            {["all", ...allCategoryNames].map((c) => (
               <button
                 key={c}
                 className={`ap-cat-pill ${catFilter === c ? "active" : ""}`}
@@ -376,7 +379,11 @@ const AdminProducts = () => {
                   <label>Category *</label>
                   <select className="ap-input" value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {allCategoryNames.length === 0 ? (
+                      <option value="">No categories yet — add them first</option>
+                    ) : (
+                      allCategoryNames.map((c) => <option key={c} value={c}>{c}</option>)
+                    )}
                   </select>
                 </div>
               </div>
