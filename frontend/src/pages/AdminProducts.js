@@ -7,6 +7,7 @@ import "./AdminProducts.css";
 
 const BASE_URL   = process.env.REACT_APP_API_URL  || "https://final-project1-d3iz.onrender.com";
 const ADMIN_KEY  = process.env.REACT_APP_ADMIN_KEY || "";
+const GEMINI_KEY = process.env.REACT_APP_GEMINI_KEY || "";
 
 const EMPTY_FORM = {
   productName: "", category: "", price: "", discount: "0",
@@ -35,6 +36,7 @@ const AdminProducts = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving]             = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [aiLoading, setAiLoading]       = useState(false); // Gemini AI
   const fileInputRef = useRef();
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
@@ -58,6 +60,84 @@ const AdminProducts = () => {
   const productCats = [...new Set(products.map((p) => p.category).filter(Boolean))];
   // Final list: prefer DB categories, fallback to whatever is on products
   const allCategoryNames = categoryNames.length > 0 ? categoryNames : productCats;
+
+  // ── Gemini AI Description Generator ─────────────────
+  const generateDescriptions = async (target = "both") => {
+    if (!form.productName.trim()) {
+      toast.error("Please enter a product name first");
+      return;
+    }
+    if (!GEMINI_KEY || GEMINI_KEY.includes("Demo")) {
+      toast.error("Gemini API key not set. Add REACT_APP_GEMINI_KEY to frontend/.env");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const productInfo = [
+        `Product: ${form.productName}`,
+        form.category ? `Category: ${form.category}` : "",
+        form.price    ? `Price: ₹${form.price}`      : "",
+      ].filter(Boolean).join(", ");
+
+      const prompt = target === "short"
+        ? `Write a concise, punchy one-line marketing tagline (max 15 words) for this product: ${productInfo}. Return only the tagline text, no quotes.`
+        : target === "full"
+        ? `Write a compelling full product description (3–4 sentences, ~80 words) for an e-commerce website for: ${productInfo}. Include key features, benefits, and a call to action. Return only the description text.`
+        : `Generate product copy for an e-commerce site for: ${productInfo}.
+Return a JSON object with exactly two keys:
+- "short": a catchy one-line tagline (max 15 words)
+- "full": a compelling product description in 3–4 sentences (~80 words) including key features and a call to action.
+Return ONLY the raw JSON object, no markdown, no code fences.`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err?.error?.message || "Gemini API error");
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
+      if (target === "both") {
+        try {
+          // Strip any accidental markdown fences
+          const clean = text.replace(/```json|```/gi, "").trim();
+          const parsed = JSON.parse(clean);
+          setForm((prev) => ({
+            ...prev,
+            shortDesc:   parsed.short || prev.shortDesc,
+            description: parsed.full  || prev.description,
+          }));
+          toast.success("✨ AI generated both descriptions!");
+        } catch {
+          // Fallback: put everything in full description
+          setForm((prev) => ({ ...prev, description: text }));
+          toast.success("✨ AI description generated!");
+        }
+      } else if (target === "short") {
+        setForm((prev) => ({ ...prev, shortDesc: text }));
+        toast.success("✨ Short description generated!");
+      } else {
+        setForm((prev) => ({ ...prev, description: text }));
+        toast.success("✨ Full description generated!");
+      }
+    } catch (err) {
+      toast.error(`AI error: ${err.message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Filtered list
   const filtered = products.filter((p) => {
@@ -414,15 +494,50 @@ const AdminProducts = () => {
                 </div>
               </div>
 
+              {/* AI Description Assistant */}
+              <div className="ai-assistant-bar">
+                <div className="ai-badge">✨ AI Assistant</div>
+                <span className="ai-hint">Auto-write descriptions using Gemini AI</span>
+                <button
+                  type="button"
+                  className={`ai-gen-btn ${aiLoading ? "ai-gen-loading" : ""}`}
+                  onClick={() => generateDescriptions("both")}
+                  disabled={aiLoading}
+                  title="Generate both short and full description using Gemini AI"
+                >
+                  {aiLoading ? (
+                    <><span className="ai-spinner" /> Generating…</>
+                  ) : (
+                    <>✨ Write Both</>
+                  )}
+                </button>
+              </div>
+
               <div className="ap-form-group">
-                <label>Short Description</label>
+                <div className="ai-label-row">
+                  <label>Short Description</label>
+                  <button type="button" className="ai-mini-btn"
+                    onClick={() => generateDescriptions("short")}
+                    disabled={aiLoading}
+                    title="Generate short description only">
+                    ✨ AI
+                  </button>
+                </div>
                 <input className="ap-input" value={form.shortDesc}
                   onChange={(e) => setForm({ ...form, shortDesc: e.target.value })}
                   placeholder="One-line summary…" />
               </div>
 
               <div className="ap-form-group">
-                <label>Full Description</label>
+                <div className="ai-label-row">
+                  <label>Full Description</label>
+                  <button type="button" className="ai-mini-btn"
+                    onClick={() => generateDescriptions("full")}
+                    disabled={aiLoading}
+                    title="Generate full description only">
+                    ✨ AI
+                  </button>
+                </div>
                 <textarea className="ap-input ap-textarea" rows={3} value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Detailed product description…" />

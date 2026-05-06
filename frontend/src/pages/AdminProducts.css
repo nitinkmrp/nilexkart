@@ -433,3 +433,139 @@
 
 @keyframes apFadeIn  { from { opacity: 0 }                                 to { opacity: 1 } }
 @keyframes apSlideUp { from { opacity: 0; transform: translateY(20px) }    to { opacity: 1; transform: none } }
+
+/* ═══════════════════════════════════════════════════════
+   AI ASSISTANT — Gemini Description Generator
+═══════════════════════════════════════════════════════ */
+
+/* Bar that sits above the description fields */
+.ai-assistant-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #0f3460 0%, #533483 50%, #7c3aed 100%);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle shimmer overlay */
+.ai-assistant-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: aiShimmer 2.5s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes aiShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.ai-badge {
+  background: rgba(255,255,255,0.18);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.25);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ai-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Main "Write Both" button */
+.ai-gen-btn {
+  background: white;
+  color: #0f3460;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ai-gen-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+}
+.ai-gen-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* Loading state */
+.ai-gen-loading {
+  color: #7c3aed;
+}
+
+/* Spinner */
+.ai-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #c4b5fd;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: aiSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes aiSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Label row with mini AI button */
+.ai-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.ai-label-row label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0 !important;
+}
+
+/* Small per-field AI button */
+.ai-mini-btn {
+  background: linear-gradient(135deg, #533483, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  letter-spacing: 0.3px;
+}
+.ai-mini-btn:hover:not(:disabled) {
+  opacity: 0.88;
+  transform: scale(1.04);
+}
+.ai-mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
