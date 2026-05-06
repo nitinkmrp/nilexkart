@@ -6,6 +6,7 @@ import {
   fetchBills, createBillThunk, updateBillThunk,
   deleteBillThunk, authorizeCashThunk, clearBillMessages,
 } from "../app/billSlice";
+import { fetchCustomers } from "../app/customerSlice";
 import "./AdminBills.css";
 
 const EMPTY_FORM = {
@@ -34,27 +35,44 @@ const AdminBills = () => {
   const navigate = useNavigate();
   const { bills, totalRevenue, loading, error, successMsg } = useSelector((s) => s.bills);
   const { currentUser } = useSelector((s) => s.users);
+  const { customers } = useSelector((s) => s.customers);
 
-  const [search,       setSearch]       = useState("");
-  const [methodFilter, setMethodFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [showForm,     setShowForm]     = useState(false);
-  const [editTarget,   setEditTarget]   = useState(null);
-  const [form,         setForm]         = useState(EMPTY_FORM);
-  const [receiptFile,  setReceiptFile]  = useState(null);
-  const [receiptPrev,  setReceiptPrev]  = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [lightbox,     setLightbox]     = useState(null); // URL to enlarge
-  const fileRef = useRef();
+  const [search,            setSearch]            = useState("");
+  const [methodFilter,      setMethodFilter]      = useState("all");
+  const [statusFilter,      setStatusFilter]      = useState("all");
+  const [showForm,          setShowForm]          = useState(false);
+  const [editTarget,        setEditTarget]        = useState(null);
+  const [form,              setForm]              = useState(EMPTY_FORM);
+  const [receiptFile,       setReceiptFile]       = useState(null);
+  const [receiptPrev,       setReceiptPrev]       = useState(null);
+  const [deleteTarget,      setDeleteTarget]      = useState(null);
+  const [lightbox,          setLightbox]          = useState(null);
+  // ── Customer picker state ──────────────────────────
+  const [selectedCustId,    setSelectedCustId]    = useState("");
+  const [custSearch,        setCustSearch]        = useState("");
+  const [showCustDropdown,  setShowCustDropdown]  = useState(false);
+  const fileRef    = useRef();
+  const custRef    = useRef();
 
   // Redirect non-admins
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
-  useEffect(() => { dispatch(fetchBills()); }, [dispatch]);
+  useEffect(() => { dispatch(fetchBills()); dispatch(fetchCustomers()); }, [dispatch]);
 
   useEffect(() => {
     if (successMsg) { toast.success(successMsg); dispatch(clearBillMessages()); }
     if (error)      { toast.error(error);        dispatch(clearBillMessages()); }
   }, [successMsg, error, dispatch]);
+
+  // ── Close customer dropdown when clicking outside ──
+  useEffect(() => {
+    const handler = (e) => {
+      if (custRef.current && !custRef.current.contains(e.target)) {
+        setShowCustDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // ── Derived filtered list ──────────────────────────
   const filtered = bills.filter((b) => {
@@ -76,16 +94,51 @@ const AdminBills = () => {
   const pendingCount    = bills.filter((b) => b.status === "pending").length;
   const authorizedCount = bills.filter((b) => b.cashAuthorized).length;
 
+  // ── Customer picker helpers ────────────────────────
+  const filteredCusts = customers.filter((c) => {
+    const q = custSearch.toLowerCase();
+    return (
+      !q ||
+      c.name?.toLowerCase().includes(q) ||
+      c.mobile?.includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    );
+  });
+
+  const selectCustomer = (c) => {
+    setSelectedCustId(c._id);
+    setCustSearch(c.name);
+    setShowCustDropdown(false);
+    setForm((prev) => ({
+      ...prev,
+      customerName:  c.name   || "",
+      customerEmail: c.email  || "",
+      customerPhone: c.mobile || "",
+    }));
+  };
+
+  const clearCustSelection = () => {
+    setSelectedCustId("");
+    setCustSearch("");
+    setForm((prev) => ({ ...prev, customerName: "", customerEmail: "", customerPhone: "" }));
+  };
+
   // ── Helpers ────────────────────────────────────────
   const openCreate = () => {
     setForm({ ...EMPTY_FORM, txnDate: new Date().toISOString().slice(0, 16) });
     setEditTarget(null);
     setReceiptFile(null);
     setReceiptPrev(null);
+    setSelectedCustId("");
+    setCustSearch("");
     setShowForm(true);
   };
 
   const openEdit = (b) => {
+    // Try to find matching customer by phone
+    const matched = customers.find((c) => c.mobile === b.customerPhone);
+    setSelectedCustId(matched?._id || "");
+    setCustSearch(b.customerName || "");
     setForm({
       customerName:  b.customerName  || "",
       customerEmail: b.customerEmail || "",
@@ -120,8 +173,12 @@ const AdminBills = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.customerName || !form.customerEmail || !form.amount) {
-      toast.error("Customer name, email and amount are required");
+    if (!form.customerName || !form.amount) {
+      toast.error("Customer name and amount are required");
+      return;
+    }
+    if (!form.customerPhone && !form.customerEmail) {
+      toast.error("Please provide customer mobile or email");
       return;
     }
     const fd = buildFormData();
@@ -132,6 +189,8 @@ const AdminBills = () => {
     }
     setShowForm(false);
     setEditTarget(null);
+    setSelectedCustId("");
+    setCustSearch("");
   };
 
   const handleAuthorize = (bill) => {
@@ -407,6 +466,64 @@ const AdminBills = () => {
             <form onSubmit={handleSubmit}>
               <div className="bill-form-grid">
 
+                {/* ── Customer Picker ── */}
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Select Customer</label>
+                  <div className="cust-picker-wrap" ref={custRef}>
+                    <div className="cust-picker-input-row">
+                      <span className="cust-picker-icon">👤</span>
+                      <input
+                        className="cust-picker-input"
+                        placeholder="Search by name, mobile or email…"
+                        value={custSearch}
+                        onChange={(e) => {
+                          setCustSearch(e.target.value);
+                          setShowCustDropdown(true);
+                          if (!e.target.value) clearCustSelection();
+                        }}
+                        onFocus={() => setShowCustDropdown(true)}
+                        autoComplete="off"
+                      />
+                      {selectedCustId && (
+                        <button type="button" className="cust-picker-clear" onClick={clearCustSelection} title="Clear selection">×</button>
+                      )}
+                    </div>
+
+                    {/* Dropdown list */}
+                    {showCustDropdown && (
+                      <div className="cust-picker-dropdown">
+                        {filteredCusts.length === 0 ? (
+                          <div className="cust-picker-empty">No customers found</div>
+                        ) : (
+                          filteredCusts.map((c) => (
+                            <div
+                              key={c._id}
+                              className={`cust-picker-option ${selectedCustId === c._id ? "selected" : ""}`}
+                              onMouseDown={() => selectCustomer(c)}
+                            >
+                              <div className="cust-picker-opt-avatar">
+                                {c.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                              </div>
+                              <div className="cust-picker-opt-info">
+                                <div className="cust-picker-opt-name">{c.name}</div>
+                                <div className="cust-picker-opt-sub">📞 {c.mobile}{c.email ? ` · ${c.email}` : ""}</div>
+                              </div>
+                              {selectedCustId === c._id && <span className="cust-picker-check">✓</span>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected customer badge */}
+                  {selectedCustId && (
+                    <div className="cust-selected-badge">
+                      ✅ Customer auto-filled from profile
+                    </div>
+                  )}
+                </div>
+
                 {/* Customer Name */}
                 <div>
                   <label className="bill-form-label">Customer Name *</label>
@@ -415,20 +532,20 @@ const AdminBills = () => {
                     placeholder="Full name" />
                 </div>
 
-                {/* Customer Email */}
-                <div>
-                  <label className="bill-form-label">Customer Email *</label>
-                  <input type="email" className="bill-form-input" value={form.customerEmail}
-                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-                    placeholder="customer@example.com" />
-                </div>
-
                 {/* Phone */}
                 <div>
-                  <label className="bill-form-label">Phone</label>
+                  <label className="bill-form-label">Mobile Number</label>
                   <input className="bill-form-input" value={form.customerPhone}
                     onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
                     placeholder="+91 98765 43210" />
+                </div>
+
+                {/* Customer Email */}
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Customer Email</label>
+                  <input type="email" className="bill-form-input" value={form.customerEmail}
+                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+                    placeholder="customer@example.com (optional if mobile provided)" />
                 </div>
 
                 {/* Txn ID */}

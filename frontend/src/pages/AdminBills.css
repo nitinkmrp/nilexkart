@@ -494,3 +494,121 @@
   .bill-form-grid { grid-template-columns: 1fr; }
   .bills-modal    { padding: 22px; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   CUSTOMER PICKER  (inside the bill form modal)
+═══════════════════════════════════════════════════════ */
+.cust-picker-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.cust-picker-input-row {
+  display: flex;
+  align-items: center;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fdfdfd;
+  padding: 0 10px;
+  gap: 8px;
+  transition: border-color 0.2s;
+}
+.cust-picker-input-row:focus-within {
+  border-color: #0f3460;
+  box-shadow: 0 0 0 3px rgba(15,52,96,0.1);
+}
+
+.cust-picker-icon { font-size: 16px; flex-shrink: 0; }
+
+.cust-picker-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #1a1a2e;
+}
+.cust-picker-input::placeholder { color: #bbb; }
+
+.cust-picker-clear {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #bbb;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+.cust-picker-clear:hover { color: #dc2626; }
+
+/* Dropdown */
+.cust-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: white;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  z-index: 9999;
+  max-height: 240px;
+  overflow-y: auto;
+  animation: cslideUp 0.15s ease;
+}
+
+.cust-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f3f3f3;
+}
+.cust-picker-option:last-child { border-bottom: none; }
+.cust-picker-option:hover { background: #f0f4ff; }
+.cust-picker-option.selected { background: #eef2ff; }
+
+.cust-picker-opt-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f3460, #533483);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.cust-picker-opt-info { flex: 1; min-width: 0; }
+.cust-picker-opt-name { font-size: 14px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cust-picker-opt-sub  { font-size: 11px; color: #aaa; margin-top: 1px; }
+
+.cust-picker-check {
+  color: #10b981;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cust-picker-empty {
+  padding: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: #bbb;
+}
+
+/* Auto-fill badge */
+.cust-selected-badge {
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #065f46;
+  background: #d1fae5;
+  border-radius: 6px;
+  padding: 5px 12px;
+  display: inline-block;
+}
+
