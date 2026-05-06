@@ -8,6 +8,7 @@ import waitlistRoutes from './routes/waitlist.routes.js';
 import productRoutes    from './routes/products.routes.js';
 import categoryRoutes  from './routes/categories.routes.js';
 import billRoutes      from './routes/bills.routes.js';
+import customerRoutes  from './routes/customers.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/products',   productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/bills',      billRoutes);
+app.use('/api/customers',  customerRoutes);
 
 // ── Health check ────────────────────────────────────
 app.get('/health', (req, res) => {
