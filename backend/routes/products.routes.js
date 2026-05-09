@@ -1,7 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { upload, cloudinary } from '../config/cloudinary.js';
-import adminKeyGuard from '../middleware/adminKeyGuard.js';
+import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
@@ -46,7 +46,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // ── POST /api/products — create product (admin only) ──
-router.post('/', adminKeyGuard, upload.single('image'), async (req, res, next) => {
+router.post('/', roleGuard(['admin', 'editor']), upload.single('image'), async (req, res, next) => {
   try {
     const { productName, category, price, discount, stock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
 
@@ -76,7 +76,7 @@ router.post('/', adminKeyGuard, upload.single('image'), async (req, res, next) =
 });
 
 // ── PUT /api/products/:id — update product (admin only) ──
-router.put('/:id', adminKeyGuard, upload.single('image'), async (req, res, next) => {
+router.put('/:id', roleGuard(['admin', 'editor']), upload.single('image'), async (req, res, next) => {
   try {
     const existing = await Product.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
@@ -106,7 +106,7 @@ router.put('/:id', adminKeyGuard, upload.single('image'), async (req, res, next)
 });
 
 // ── PATCH /api/products/:id/stock — update stock (admin only) ──
-router.patch('/:id/stock', adminKeyGuard, async (req, res, next) => {
+router.patch('/:id/stock', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const { stock } = req.body;
     if (stock === undefined || stock < 0) {
@@ -123,7 +123,7 @@ router.patch('/:id/stock', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── DELETE /api/products/:id (admin only) ──────────────────
-router.delete('/:id', adminKeyGuard, async (req, res, next) => {
+router.delete('/:id', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });

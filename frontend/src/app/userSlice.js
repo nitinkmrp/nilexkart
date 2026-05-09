@@ -91,6 +91,7 @@ const userSlice = createSlice({
       state.currentUser = null;
       state.isLoggedIn = false;
       localStorage.removeItem("currentUser");
+      localStorage.removeItem("jwtToken");
     },
     clearMessages(state) {
       state.error = null;

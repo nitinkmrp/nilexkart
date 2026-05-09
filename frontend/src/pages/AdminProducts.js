@@ -5,8 +5,7 @@ import { toast } from "react-toastify";
 import { fetchCategories } from "../app/categorySlice";
 import "./AdminProducts.css";
 
-const BASE_URL   = process.env.REACT_APP_API_URL  || "https://final-project1-d3iz.onrender.com";
-const ADMIN_KEY  = process.env.REACT_APP_ADMIN_KEY || "";
+const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const EMPTY_FORM = {
   productName: "", category: "", price: "", discount: "0",
@@ -72,7 +71,7 @@ const AdminProducts = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-key":  ADMIN_KEY,
+          "Authorization": `Bearer ${localStorage.getItem("jwtToken")}`,
         },
         body: JSON.stringify({
           productName: form.productName,
@@ -164,9 +163,13 @@ const AdminProducts = () => {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (imageFile) fd.append("image", imageFile);
 
+      const headers = {};
+      const token = localStorage.getItem("jwtToken");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const url    = editTarget ? `${BASE_URL}/api/products/${editTarget._id}` : `${BASE_URL}/api/products`;
       const method = editTarget ? "PUT" : "POST";
-      const res    = await fetch(url, { method, body: fd, headers: { "x-admin-key": ADMIN_KEY } });
+      const res    = await fetch(url, { method, body: fd, headers });
       const data   = await res.json();
 
       if (data.success) {
@@ -184,9 +187,13 @@ const AdminProducts = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
+      const headers = {};
+      const token = localStorage.getItem("jwtToken");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      
       const res  = await fetch(`${BASE_URL}/api/products/${deleteTarget._id}`, {
         method: "DELETE",
-        headers: { "x-admin-key": ADMIN_KEY },
+        headers,
       });
       const data = await res.json();
       if (data.success) {
@@ -203,9 +210,13 @@ const AdminProducts = () => {
   const handleStockChange = async (id, newStock) => {
     if (newStock < 0) return;
     try {
+      const headers = { "Content-Type": "application/json" };
+      const token = localStorage.getItem("jwtToken");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      
       const res  = await fetch(`${BASE_URL}/api/products/${id}/stock`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
+        headers,
         body: JSON.stringify({ stock: newStock }),
       });
       const data = await res.json();

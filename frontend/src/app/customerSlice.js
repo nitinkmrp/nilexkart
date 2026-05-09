@@ -3,10 +3,12 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 const API = process.env.REACT_APP_API_URL || "http://localhost:8888";
 const ADMIN_KEY = process.env.REACT_APP_ADMIN_KEY || "";
 
-const headers = () => ({
-  "Content-Type": "application/json",
-  "x-admin-key": ADMIN_KEY,
-});
+const headers = () => {
+  const token = localStorage.getItem("jwtToken");
+  const h = { "Content-Type": "application/json" };
+  if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
+};
 
 // ── Thunks ────────────────────────────────────────────
 

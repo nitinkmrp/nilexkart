@@ -1,13 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-const BASE       = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
-const ADMIN_KEY  = process.env.REACT_APP_ADMIN_KEY || "";
+const BASE = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 async function apiFetch(path, opts = {}) {
-  const res  = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
-    ...opts,
-  });
+  const token = localStorage.getItem("jwtToken");
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, { headers, ...opts });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Request failed");
   return json;

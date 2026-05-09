@@ -1,7 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { upload, cloudinary } from '../config/cloudinary.js';
-import adminKeyGuard from '../middleware/adminKeyGuard.js';
+import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
@@ -44,7 +44,7 @@ const billSchema = new mongoose.Schema(
 const Bill = mongoose.models.Bill || mongoose.model('Bill', billSchema);
 
 // ── GET /api/bills — list all bills ─────────────────────
-router.get('/', adminKeyGuard, async (req, res, next) => {
+router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const { status, method, search } = req.query;
     const filter = {};
@@ -64,7 +64,7 @@ router.get('/', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── GET /api/bills/:id ────────────────────────────────────
-router.get('/:id', adminKeyGuard, async (req, res, next) => {
+router.get('/:id', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const bill = await Bill.findById(req.params.id);
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
@@ -73,7 +73,7 @@ router.get('/:id', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── POST /api/bills — create bill (admin only) ─────────────
-router.post('/', adminKeyGuard, upload.single('receipt'), async (req, res, next) => {
+router.post('/', roleGuard(['admin', 'editor', 'support']), upload.single('receipt'), async (req, res, next) => {
   try {
     const {
       customerName, customerEmail, customerPhone,
@@ -110,7 +110,7 @@ router.post('/', adminKeyGuard, upload.single('receipt'), async (req, res, next)
 });
 
 // ── PUT /api/bills/:id — update bill ──────────────────────
-router.put('/:id', adminKeyGuard, upload.single('receipt'), async (req, res, next) => {
+router.put('/:id', roleGuard(['admin', 'editor', 'support']), upload.single('receipt'), async (req, res, next) => {
   try {
     const existing = await Bill.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: 'Bill not found' });
@@ -140,7 +140,7 @@ router.put('/:id', adminKeyGuard, upload.single('receipt'), async (req, res, nex
 });
 
 // ── PATCH /api/bills/:id/authorize — authorize cash payment ──
-router.patch('/:id/authorize', adminKeyGuard, async (req, res, next) => {
+router.patch('/:id/authorize', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const { authorizedBy, authorize } = req.body;
     const doAuthorize = authorize !== false; // default to true
@@ -163,7 +163,7 @@ router.patch('/:id/authorize', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── DELETE /api/bills/:id ──────────────────────────────────
-router.delete('/:id', adminKeyGuard, async (req, res, next) => {
+router.delete('/:id', roleGuard(['admin']), async (req, res, next) => {
   try {
     const bill = await Bill.findByIdAndDelete(req.params.id);
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });

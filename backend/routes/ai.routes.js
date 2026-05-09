@@ -1,5 +1,5 @@
 import express from 'express';
-import adminKeyGuard from '../middleware/adminKeyGuard.js';
+import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ const GEMINI_URL =
 // POST /api/ai/describe
 // Body: { productName, category, price, target }
 // target: "both" | "short" | "full"
-router.post('/describe', adminKeyGuard, async (req, res) => {
+router.post('/describe', roleGuard(['admin', 'editor']), async (req, res) => {
   const { productName, category, price, target = 'both' } = req.body;
 
   if (!productName?.trim()) {

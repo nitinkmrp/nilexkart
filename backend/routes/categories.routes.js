@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import adminKeyGuard from '../middleware/adminKeyGuard.js';
+import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
@@ -40,7 +40,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // ── POST /api/categories — create category (admin only) ──
-router.post('/', adminKeyGuard, async (req, res, next) => {
+router.post('/', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const { name, description, icon, isActive } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Category name is required' });
@@ -62,7 +62,7 @@ router.post('/', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── PUT /api/categories/:id — update category (admin only) ──
-router.put('/:id', adminKeyGuard, async (req, res, next) => {
+router.put('/:id', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const { name, description, icon, isActive } = req.body;
     const updates = {};
@@ -88,7 +88,7 @@ router.put('/:id', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── DELETE /api/categories/:id (admin only) ──────────
-router.delete('/:id', adminKeyGuard, async (req, res, next) => {
+router.delete('/:id', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) return res.status(404).json({ success: false, message: 'Category not found' });

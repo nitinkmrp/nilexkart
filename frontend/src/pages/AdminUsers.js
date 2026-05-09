@@ -15,10 +15,10 @@ const AdminUsers = () => {
   const navigate = useNavigate();
   const { users, currentUser, loading, error, successMessage } = useSelector((s) => s.users);
 
-  const [search, setSearch]       = useState("");
-  const [showForm, setShowForm]   = useState(false);
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // user being edited
-  const [form, setForm]           = useState(EMPTY_FORM);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Redirect non-admins
@@ -31,7 +31,7 @@ const AdminUsers = () => {
 
   useEffect(() => {
     if (successMessage) { toast.success(successMessage); dispatch(clearMessages()); }
-    if (error)          { toast.error(error);            dispatch(clearMessages()); }
+    if (error) { toast.error(error); dispatch(clearMessages()); }
   }, [successMessage, error, dispatch]);
 
   const filtered = users.filter(
@@ -41,7 +41,7 @@ const AdminUsers = () => {
   );
 
   const openCreate = () => { setForm(EMPTY_FORM); setEditTarget(null); setShowForm(true); };
-  const openEdit   = (user) => {
+  const openEdit = (user) => {
     setForm({ name: user.name, email: user.email, password: "", gender: user.gender });
     setEditTarget(user);
     setShowForm(true);
@@ -161,7 +161,7 @@ const AdminUsers = () => {
                       <td>
                         <div className="d-flex gap-2">
                           <button className="btn btn-sm admin-edit-btn" onClick={() => openEdit(user)}>Edit</button>
-                          <button className="btn btn-sm admin-del-btn"  onClick={() => setDeleteTarget(user)}>Delete</button>
+                          <button className="btn btn-sm admin-del-btn" onClick={() => setDeleteTarget(user)}>Delete</button>
                         </div>
                       </td>
                     </tr>

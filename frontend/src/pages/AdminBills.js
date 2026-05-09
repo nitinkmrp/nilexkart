@@ -198,7 +198,11 @@ const AdminBills = () => {
 
   // ── Helpers ────────────────────────────────────────
   const openCreate = () => {
-    setForm({ ...EMPTY_FORM, txnDate: new Date().toISOString().slice(0, 16) });
+    setForm({ 
+      ...EMPTY_FORM, 
+      txnDate: new Date().toISOString().slice(0, 16),
+      receivedBy: currentUser?.name || currentUser?.email || ""
+    });
     setEditTarget(null);
     setReceiptFile(null);
     setReceiptPrev(null);

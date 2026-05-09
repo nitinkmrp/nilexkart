@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import adminKeyGuard from '../middleware/adminKeyGuard.js';
+import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ const Customer = mongoose.models.Customer || mongoose.model('Customer', customer
 const getBillModel = () => mongoose.models.Bill;
 
 // ── GET /api/customers — list all customers ─────────────
-router.get('/', adminKeyGuard, async (req, res, next) => {
+router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const { search } = req.query;
     const filter = {};
@@ -58,7 +58,7 @@ router.get('/', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── GET /api/customers/:id — single customer ────────────
-router.get('/:id', adminKeyGuard, async (req, res, next) => {
+router.get('/:id', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const customer = await Customer.findById(req.params.id);
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
@@ -67,7 +67,7 @@ router.get('/:id', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── GET /api/customers/:id/timeline — txn timeline ──────
-router.get('/:id/timeline', adminKeyGuard, async (req, res, next) => {
+router.get('/:id/timeline', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const customer = await Customer.findById(req.params.id);
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
@@ -87,7 +87,7 @@ router.get('/:id/timeline', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── POST /api/customers — create customer ───────────────
-router.post('/', adminKeyGuard, async (req, res, next) => {
+router.post('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const { name, mobile, email, address, notes } = req.body;
     if (!name || !mobile) {
@@ -99,7 +99,7 @@ router.post('/', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── PUT /api/customers/:id — update customer ────────────
-router.put('/:id', adminKeyGuard, async (req, res, next) => {
+router.put('/:id', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {
   try {
     const { name, mobile, email, address, notes } = req.body;
     const customer = await Customer.findByIdAndUpdate(
@@ -113,7 +113,7 @@ router.put('/:id', adminKeyGuard, async (req, res, next) => {
 });
 
 // ── DELETE /api/customers/:id ───────────────────────────
-router.delete('/:id', adminKeyGuard, async (req, res, next) => {
+router.delete('/:id', roleGuard(['admin']), async (req, res, next) => {
   try {
     const customer = await Customer.findByIdAndDelete(req.params.id);
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });

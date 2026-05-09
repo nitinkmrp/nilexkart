@@ -1,11 +1,14 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-const BASE      = process.env.REACT_APP_API_URL  || "https://final-project1-d3iz.onrender.com";
-const ADMIN_KEY = process.env.REACT_APP_ADMIN_KEY || "";
+const BASE = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 async function adminFetch(path, opts = {}) {
-  const res  = await fetch(`${BASE}${path}`, {
-    headers: { "x-admin-key": ADMIN_KEY, ...opts.headers },
+  const token = localStorage.getItem("jwtToken");
+  const headers = { ...opts.headers };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, {
+    headers,
     ...opts,
   });
   const json = await res.json();
@@ -24,9 +27,13 @@ export const createBillThunk = createAsyncThunk(
   "bills/create",
   async (formData, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem("jwtToken");
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      
       const res  = await fetch(`${BASE}/api/bills`, {
         method: "POST",
-        headers: { "x-admin-key": ADMIN_KEY },
+        headers,
         body: formData,  // FormData (supports file upload)
       });
       const json = await res.json();
@@ -40,9 +47,13 @@ export const updateBillThunk = createAsyncThunk(
   "bills/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem("jwtToken");
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res  = await fetch(`${BASE}/api/bills/${id}`, {
         method: "PUT",
-        headers: { "x-admin-key": ADMIN_KEY },
+        headers,
         body: formData,
       });
       const json = await res.json();
@@ -58,7 +69,7 @@ export const authorizeCashThunk = createAsyncThunk(
     try {
       const data = await adminFetch(`/api/bills/${id}/authorize`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ authorizedBy, authorize }),
       });
       return data.data;

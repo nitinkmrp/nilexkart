@@ -10,6 +10,7 @@ import categoryRoutes  from './routes/categories.routes.js';
 import billRoutes      from './routes/bills.routes.js';
 import customerRoutes  from './routes/customers.routes.js';
 import aiRoutes        from './routes/ai.routes.js';
+import authRoutes      from './routes/auth.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -52,6 +53,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/bills',      billRoutes);
 app.use('/api/customers',  customerRoutes);
 app.use('/api/ai',         aiRoutes);
+app.use('/api/auth',       authRoutes);
 
 // ── Health check ────────────────────────────────────
 app.get('/health', (req, res) => {
