@@ -49,11 +49,11 @@ function App() {
 
           {/* New routes */}
           <Route path="/profile"            element={<Profile />} />
-          <Route path="/admin/users"        element={<AdminGuard><AdminUsers /></AdminGuard>} />
-          <Route path="/admin/products"     element={<AdminGuard><AdminProducts /></AdminGuard>} />
-          <Route path="/admin/categories"   element={<AdminGuard><AdminCategories /></AdminGuard>} />
-          <Route path="/admin/bills"         element={<AdminGuard><AdminBills /></AdminGuard>} />
-          <Route path="/admin/customers"     element={<AdminGuard><AdminCustomers /></AdminGuard>} />
+          <Route path="/admin/users"        element={<AdminGuard allowedRoles={['admin']}><AdminUsers /></AdminGuard>} />
+          <Route path="/admin/products"     element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminProducts /></AdminGuard>} />
+          <Route path="/admin/categories"   element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminCategories /></AdminGuard>} />
+          <Route path="/admin/bills"        element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminBills /></AdminGuard>} />
+          <Route path="/admin/customers"    element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminCustomers /></AdminGuard>} />
         </Routes>
         <Footer />
       </Router>

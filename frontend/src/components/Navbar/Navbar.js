@@ -54,28 +54,36 @@ const NavBar = () => {
               <li className="nav-item">
                 <Link className="nav-link" to="/shop" onClick={() => setMenuOpen(false)}>Shop</Link>
               </li>
-              {isLoggedIn && currentUser?.role === "admin" && (
+              {isLoggedIn && ['admin', 'editor', 'support'].includes(currentUser?.role) && (
                 <>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/admin/products" onClick={() => setMenuOpen(false)}>
-                      📦 Products
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/admin/users" onClick={() => setMenuOpen(false)}>
-                      👥 Users
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/admin/categories" onClick={() => setMenuOpen(false)}>
-                      🗂️ Categories
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/admin/bills" onClick={() => setMenuOpen(false)}>
-                      🧾 Bills
-                    </Link>
-                  </li>
+                  {['admin', 'editor'].includes(currentUser?.role) && (
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/admin/products" onClick={() => setMenuOpen(false)}>
+                        📦 Products
+                      </Link>
+                    </li>
+                  )}
+                  {currentUser?.role === 'admin' && (
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/admin/users" onClick={() => setMenuOpen(false)}>
+                        👥 Users
+                      </Link>
+                    </li>
+                  )}
+                  {['admin', 'editor'].includes(currentUser?.role) && (
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/admin/categories" onClick={() => setMenuOpen(false)}>
+                        🗂️ Categories
+                      </Link>
+                    </li>
+                  )}
+                  {['admin', 'editor', 'support'].includes(currentUser?.role) && (
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/admin/bills" onClick={() => setMenuOpen(false)}>
+                        🧾 Bills
+                      </Link>
+                    </li>
+                  )}
                 </>
               )}
             </ul>
@@ -109,20 +117,28 @@ const NavBar = () => {
                     <Dropdown.Item as={Link} to="/profile">
                       <i className="fa fa-user me-2" /> My Profile
                     </Dropdown.Item>
-                    {currentUser?.role === "admin" && (
+                    {['admin', 'editor', 'support'].includes(currentUser?.role) && (
                       <>
-                        <Dropdown.Item as={Link} to="/admin/products">
-                          <i className="fa fa-box me-2" /> Manage Products
-                        </Dropdown.Item>
-                        <Dropdown.Item as={Link} to="/admin/users">
-                          <i className="fa fa-users me-2" /> Manage Users
-                        </Dropdown.Item>
-                        <Dropdown.Item as={Link} to="/admin/categories">
-                          <i className="fa fa-tags me-2" /> Manage Categories
-                        </Dropdown.Item>
-                        <Dropdown.Item as={Link} to="/admin/bills">
-                          <i className="fa fa-receipt me-2" /> Manage Bills
-                        </Dropdown.Item>
+                        {['admin', 'editor'].includes(currentUser?.role) && (
+                          <Dropdown.Item as={Link} to="/admin/products">
+                            <i className="fa fa-box me-2" /> Manage Products
+                          </Dropdown.Item>
+                        )}
+                        {currentUser?.role === 'admin' && (
+                          <Dropdown.Item as={Link} to="/admin/users">
+                            <i className="fa fa-users me-2" /> Manage Users
+                          </Dropdown.Item>
+                        )}
+                        {['admin', 'editor'].includes(currentUser?.role) && (
+                          <Dropdown.Item as={Link} to="/admin/categories">
+                            <i className="fa fa-tags me-2" /> Manage Categories
+                          </Dropdown.Item>
+                        )}
+                        {['admin', 'editor', 'support'].includes(currentUser?.role) && (
+                          <Dropdown.Item as={Link} to="/admin/bills">
+                            <i className="fa fa-receipt me-2" /> Manage Bills
+                          </Dropdown.Item>
+                        )}
                       </>
                     )}
                     <Dropdown.Divider />

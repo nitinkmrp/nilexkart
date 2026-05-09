@@ -8,12 +8,12 @@ import { Navigate } from 'react-router-dom';
  * • Logged in, not admin → show 403 screen
  * • Admin → render children
  */
-const AdminGuard = ({ children }) => {
+const AdminGuard = ({ children, allowedRoles = ['admin'] }) => {
   const currentUser = useSelector((s) => s.users.currentUser);
 
   if (!currentUser) return <Navigate to="/" replace />;
 
-  if (currentUser.role !== 'admin') {
+  if (!allowedRoles.includes(currentUser.role)) {
     return (
       <div style={{
         minHeight: '80vh',
