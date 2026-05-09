@@ -64,25 +64,25 @@ export const serviceData = [
   {
     icon: <ion-icon name="car"></ion-icon>,
     title: "Free Shipping",
-    subtitle: "Lorem ipsum dolor sit amet.",
+    subtitle: "Enjoy free shipping on all orders with no minimum purchase required.",
     bg: "#fdefe6",
   },
   {
     icon: <ion-icon name="card"></ion-icon>,
     title: "Safe Payment",
-    subtitle: "Lorem ipsum dolor sit amet.",
+    subtitle: "Your transactions are protected with 256-bit advanced encryption.",
     bg: "#ceebe9",
   },
   {
     icon: <ion-icon name="shield-half-outline"></ion-icon>,
-    title: "Secure Payment",
-    subtitle: "Lorem ipsum dolor sit amet.",
+    title: "Secure Checkout",
+    subtitle: "We ensure top-level security and privacy for your payment details.",
     bg: "#e2f2b2",
   },
   {
     icon: <ion-icon name="headset"></ion-icon>,
-    title: " Back Guarantee",
-    subtitle: "Lorem ipsum dolor sit amet.",
+    title: "Money-Back Guarantee",
+    subtitle: "30-day money-back guarantee if you aren't completely satisfied.",
     bg: "#d6e5fb",
   },
 ];

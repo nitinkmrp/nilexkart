@@ -19,6 +19,7 @@ const Home = () => {
   }, []);
 
   const discoutProducts = liveProducts.filter(item => item.discount > 15);
+  const sliderData = liveProducts.filter(item => item.discount < 15).slice(0, 5); // Max 5 items for slider
   const newArrivalData = liveProducts.slice(0, 8); // Display first 8 products as new arrivals
   const bestSales = liveProducts.slice(8, 16); // Display next 8 products as best sales
 
@@ -26,7 +27,7 @@ const Home = () => {
 
   return (
     <Fragment>
-      <SliderHome />
+      <SliderHome sliderData={sliderData} />
       <Wrapper />
       {discoutProducts.length > 0 && (
         <Section
