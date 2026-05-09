@@ -19,10 +19,8 @@ const Home = () => {
   }, []);
 
   const discoutProducts = liveProducts.filter(item => item.discount > 0);
-  const newArrivalData = liveProducts.filter(
-    (item) => item.category === "mobile" || item.category === "wireless"
-  );
-  const bestSales = liveProducts.filter((item) => item.category === "sofa");
+  const newArrivalData = liveProducts.slice(0, 8); // Display first 8 products as new arrivals
+  const bestSales = liveProducts.slice(8, 16); // Display next 8 products as best sales
 
   useWindowScrollToTop();
 

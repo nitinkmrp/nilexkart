@@ -18,8 +18,8 @@ const Shop = () => {
       .then(data => {
         if (data.success) {
           setAllProducts(data.data);
-          // Initial filter (e.g., sofas)
-          setFilterList(data.data.filter(item => item.category === "sofa"));
+          // Initial filter (show all products)
+          setFilterList(data.data);
         }
       })
       .catch(err => console.error("Error fetching shop products:", err));

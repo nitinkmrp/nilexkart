@@ -1,13 +1,4 @@
 import Select from 'react-select';
-import { products } from '../utils/products';
-
-const options = [
-    { value: "sofa", label: "Sofa" },
-    { value: "chair", label: "Chair" },
-    { value: "watch", label: "Watch" },
-    { value: "mobile", label: "Mobile" },
-    { value: "wireless", label: "Wireless" },
-];
 
 const customStyles = {
     control: (provided) => ({
@@ -35,9 +26,16 @@ const customStyles = {
     }),
 };
 
-const FilterSelect = ({setFilterList}) => {
+const FilterSelect = ({setFilterList, products}) => {
+    const uniqueCategories = [...new Set(products?.map(p => p.category))].filter(Boolean);
+    const options = uniqueCategories.map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }));
+
     const handleChange = (selectedOption)=> {
-        setFilterList(products.filter(item => item.category ===selectedOption.value))
+        if (!selectedOption || selectedOption.value === "") {
+            setFilterList(products);
+        } else {
+            setFilterList(products.filter(item => item.category === selectedOption.value));
+        }
     }
     return (
     <Select
