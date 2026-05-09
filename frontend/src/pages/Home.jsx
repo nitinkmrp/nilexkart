@@ -18,7 +18,7 @@ const Home = () => {
       .catch(err => console.error("Error fetching live products:", err));
   }, []);
 
-  const discoutProducts = liveProducts.filter(item => item.discount > 0);
+  const discoutProducts = liveProducts.filter(item => item.discount > 15);
   const newArrivalData = liveProducts.slice(0, 8); // Display first 8 products as new arrivals
   const bestSales = liveProducts.slice(8, 16); // Display next 8 products as best sales
 
