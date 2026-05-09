@@ -8,7 +8,7 @@ import {
 import { toast } from "react-toastify";
 import "./AdminUsers.css";
 
-const EMPTY_FORM = { name: "", email: "", password: "", gender: "" };
+const EMPTY_FORM = { name: "", email: "", password: "", role: "user" };
 
 const AdminUsers = () => {
   const dispatch = useDispatch();
@@ -42,7 +42,7 @@ const AdminUsers = () => {
 
   const openCreate = () => { setForm(EMPTY_FORM); setEditTarget(null); setShowForm(true); };
   const openEdit = (user) => {
-    setForm({ name: user.name, email: user.email, password: "", gender: user.gender });
+    setForm({ name: user.name, email: user.email, password: "", role: user.role || "user" });
     setEditTarget(user);
     setShowForm(true);
   };
@@ -50,13 +50,13 @@ const AdminUsers = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (editTarget) {
-      const updates = { name: form.name, gender: form.gender };
+      const updates = { name: form.name, role: form.role };
       if (form.password) updates.password = form.password;
       dispatch(updateUserThunk({ email: editTarget.email, updates }));
     } else {
-      const { name, email, password, gender } = form;
-      if (!name || !email || !password || !gender) { toast.error("All fields required"); return; }
-      dispatch(registerUser({ name, email, password, gender }));
+      const { name, email, password, role } = form;
+      if (!name || !email || !password || !role) { toast.error("All fields required"); return; }
+      dispatch(registerUser({ name, email, password, role }));
     }
     setShowForm(false);
     setEditTarget(null);
@@ -92,12 +92,16 @@ const AdminUsers = () => {
             <div className="stat-lbl">Total Users</div>
           </div>
           <div className="stat-box">
-            <div className="stat-num">{users.filter(u => u.gender === "Male" || u.gender === "M").length}</div>
-            <div className="stat-lbl">Male</div>
+            <div className="stat-num">{users.filter(u => u.role === "admin").length}</div>
+            <div className="stat-lbl">Admins</div>
           </div>
           <div className="stat-box">
-            <div className="stat-num">{users.filter(u => u.gender === "Female" || u.gender === "F").length}</div>
-            <div className="stat-lbl">Female</div>
+            <div className="stat-num">{users.filter(u => u.role === "editor").length}</div>
+            <div className="stat-lbl">Editors</div>
+          </div>
+          <div className="stat-box">
+            <div className="stat-num">{users.filter(u => u.role === "support").length}</div>
+            <div className="stat-lbl">Support</div>
           </div>
         </div>
 
@@ -123,7 +127,7 @@ const AdminUsers = () => {
                 <tr>
                   <th>User</th>
                   <th>Email</th>
-                  <th>Gender</th>
+                  <th>Role</th>
                   <th>Joined</th>
                   <th>Actions</th>
                 </tr>
@@ -151,7 +155,7 @@ const AdminUsers = () => {
                       </td>
                       <td className="text-muted" style={{ fontSize: 14 }}>{user.email}</td>
                       <td>
-                        <span className="gender-pill">{user.gender}</span>
+                        <span className={`gender-pill ${user.role === 'admin' ? 'role-admin' : user.role === 'editor' ? 'role-editor' : user.role === 'support' ? 'role-support' : ''}`}>{user.role || 'user'}</span>
                       </td>
                       <td style={{ fontSize: 13, color: "#999" }}>
                         {user.createdAt
@@ -198,14 +202,13 @@ const AdminUsers = () => {
                   onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
               </div>
               <div className="mb-4">
-                <label className="form-label">Gender *</label>
-                <select className="form-select" value={form.gender}
-                  onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-                  <option value="">Select gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="M">M</option>
-                  <option value="F">F</option>
+                <label className="form-label">Role *</label>
+                <select className="form-select" value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                  <option value="user">User (Customer)</option>
+                  <option value="admin">Admin (Full Access)</option>
+                  <option value="editor">Editor (Products & Categories)</option>
+                  <option value="support">Support (Bills & Customers)</option>
                 </select>
               </div>
               <button type="submit" className="btn w-100 admin-submit-btn" disabled={loading}>
