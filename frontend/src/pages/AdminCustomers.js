@@ -385,7 +385,14 @@ const AdminCustomers = () => {
                         <div className="tl-card">
                           <div className="tl-card-top">
                             <div>
-                              <div className="tl-card-amount">₹{Number(b.amount).toLocaleString("en-IN")}</div>
+                              {b.txnType === 'give' ? (
+                                <div className="tl-card-amount" style={{ color: "#d9534f" }}>- ₹{Number(b.amount).toLocaleString("en-IN")}</div>
+                              ) : (
+                                <div className="tl-card-amount" style={{ color: "#28a745" }}>+ ₹{Number(b.amount).toLocaleString("en-IN")}</div>
+                              )}
+                              <div style={{ fontSize: 11, color: "#888", fontWeight: 500, marginBottom: 4 }}>
+                                {b.txnType === 'give' ? "Due / Given" : "Received"}
+                              </div>
                               <div className="tl-card-date">{fmt(b.txnDate)}</div>
                             </div>
                             <div className="tl-badges">
