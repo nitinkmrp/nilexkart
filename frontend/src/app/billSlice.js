@@ -120,7 +120,7 @@ const billSlice = createSlice({
       .addCase(createBillThunk.fulfilled,(s, a) => {
         s.loading = false;
         s.bills.unshift(a.payload);
-        s.totalRevenue += (a.payload.amount - (a.payload.udharAmount || 0));
+        s.totalRevenue += (a.payload.txnType === 'give' ? -a.payload.amount : a.payload.amount);
         s.successMsg = "Bill created successfully";
       })
       .addCase(createBillThunk.rejected, (s, a) => { s.loading = false; s.error = a.payload; });
@@ -151,7 +151,7 @@ const billSlice = createSlice({
       .addCase(deleteBillThunk.fulfilled,(s, a) => {
         s.loading = false;
         const removed = s.bills.find((b) => b._id === a.payload);
-        if (removed) s.totalRevenue -= (removed.amount - (removed.udharAmount || 0));
+        if (removed) s.totalRevenue -= (removed.txnType === 'give' ? -removed.amount : removed.amount);
         s.bills   = s.bills.filter((b) => b._id !== a.payload);
         s.successMsg = "Bill deleted";
       })

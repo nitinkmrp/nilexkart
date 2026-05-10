@@ -15,7 +15,7 @@ const EMPTY_FORM = {
   customerPhone: "",
   txnId:         "",
   amount:        "",
-  udharAmount:   "",
+  txnType:       "receive",
   paymentMethod: "online",
   status:        "paid",
   receivedBy:    "",
@@ -199,10 +199,14 @@ const AdminBills = () => {
 
   // ── Helpers ────────────────────────────────────────
   const openCreate = () => {
+    const defaultReceiver = currentUser?.name 
+      ? `${currentUser.name} (${currentUser.email})`
+      : currentUser?.email || "";
+
     setForm({ 
       ...EMPTY_FORM, 
       txnDate: new Date().toISOString().slice(0, 16),
-      receivedBy: currentUser?.name || currentUser?.email || ""
+      receivedBy: defaultReceiver
     });
     setEditTarget(null);
     setReceiptFile(null);
@@ -223,7 +227,7 @@ const AdminBills = () => {
       customerPhone: b.customerPhone || "",
       txnId:         b.txnId         || "",
       amount:        b.amount        || "",
-      udharAmount:   b.udharAmount   || "",
+      txnType:       b.txnType       || "receive",
       paymentMethod: b.paymentMethod || "online",
       status:        b.status        || "paid",
       receivedBy:    b.receivedBy    || "",
@@ -457,11 +461,14 @@ const AdminBills = () => {
 
                     {/* Amount */}
                     <td className="bill-amount">
-                      <div style={{ fontWeight: "bold" }}>₹{Number(b.amount).toLocaleString("en-IN")}</div>
-                      {b.udharAmount > 0 && (
-                        <div style={{ fontSize: 12, color: "#d9534f", marginTop: 2 }}>Due: ₹{Number(b.udharAmount).toLocaleString("en-IN")}</div>
+                      {b.txnType === 'give' ? (
+                        <div style={{ fontWeight: "bold", color: "#d9534f" }}>- ₹{Number(b.amount).toLocaleString("en-IN")}</div>
+                      ) : (
+                        <div style={{ fontWeight: "bold", color: "#28a745" }}>+ ₹{Number(b.amount).toLocaleString("en-IN")}</div>
                       )}
-                      <div style={{ fontSize: 12, color: "#28a745", marginTop: 2 }}>Paid: ₹{(Number(b.amount) - Number(b.udharAmount || 0)).toLocaleString("en-IN")}</div>
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                        {b.txnType === 'give' ? "Due / Given" : "Received"}
+                      </div>
                     </td>
 
                     {/* Method */}
@@ -641,19 +648,38 @@ const AdminBills = () => {
                     placeholder="razorpay_xxx / manual ref" />
                 </div>
 
-                {/* Amount */}
-                <div>
-                  <label className="bill-form-label">Total Bill Amount (₹) *</label>
-                  <input type="number" min="0" className="bill-form-input" value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    placeholder="0" />
+                {/* Transaction Type */}
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Transaction Type</label>
+                  <div className="d-flex gap-3 mt-1">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 500, color: '#28a745' }}>
+                      <input 
+                        type="radio" 
+                        name="txnType" 
+                        value="receive" 
+                        checked={form.txnType === 'receive'} 
+                        onChange={(e) => setForm({ ...form, txnType: e.target.value })} 
+                      />
+                      ➕ Receive Payment (In)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 500, color: '#d9534f' }}>
+                      <input 
+                        type="radio" 
+                        name="txnType" 
+                        value="give" 
+                        checked={form.txnType === 'give'} 
+                        onChange={(e) => setForm({ ...form, txnType: e.target.value })} 
+                      />
+                      ➖ Give Payment / Due (Out)
+                    </label>
+                  </div>
                 </div>
 
-                {/* Udhar Amount */}
+                {/* Amount */}
                 <div>
-                  <label className="bill-form-label">Udhar / Due Amount (₹)</label>
-                  <input type="number" min="0" className="bill-form-input" value={form.udharAmount}
-                    onChange={(e) => setForm({ ...form, udharAmount: e.target.value })}
+                  <label className="bill-form-label">Amount (₹) *</label>
+                  <input type="number" min="0" className="bill-form-input" value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     placeholder="0" />
                 </div>
 
