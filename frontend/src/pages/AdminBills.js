@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   customerPhone: "",
   txnId:         "",
   amount:        "",
+  udharAmount:   "",
   paymentMethod: "online",
   status:        "paid",
   receivedBy:    "",
@@ -222,6 +223,7 @@ const AdminBills = () => {
       customerPhone: b.customerPhone || "",
       txnId:         b.txnId         || "",
       amount:        b.amount        || "",
+      udharAmount:   b.udharAmount   || "",
       paymentMethod: b.paymentMethod || "online",
       status:        b.status        || "paid",
       receivedBy:    b.receivedBy    || "",
@@ -454,7 +456,13 @@ const AdminBills = () => {
                     </td>
 
                     {/* Amount */}
-                    <td className="bill-amount">₹{Number(b.amount).toLocaleString("en-IN")}</td>
+                    <td className="bill-amount">
+                      <div style={{ fontWeight: "bold" }}>₹{Number(b.amount).toLocaleString("en-IN")}</div>
+                      {b.udharAmount > 0 && (
+                        <div style={{ fontSize: 12, color: "#d9534f", marginTop: 2 }}>Due: ₹{Number(b.udharAmount).toLocaleString("en-IN")}</div>
+                      )}
+                      <div style={{ fontSize: 12, color: "#28a745", marginTop: 2 }}>Paid: ₹{(Number(b.amount) - Number(b.udharAmount || 0)).toLocaleString("en-IN")}</div>
+                    </td>
 
                     {/* Method */}
                     <td>
@@ -635,9 +643,17 @@ const AdminBills = () => {
 
                 {/* Amount */}
                 <div>
-                  <label className="bill-form-label">Amount (₹) *</label>
+                  <label className="bill-form-label">Total Bill Amount (₹) *</label>
                   <input type="number" min="0" className="bill-form-input" value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    placeholder="0" />
+                </div>
+
+                {/* Udhar Amount */}
+                <div>
+                  <label className="bill-form-label">Udhar / Due Amount (₹)</label>
+                  <input type="number" min="0" className="bill-form-input" value={form.udharAmount}
+                    onChange={(e) => setForm({ ...form, udharAmount: e.target.value })}
                     placeholder="0" />
                 </div>
 

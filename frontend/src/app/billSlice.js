@@ -8,8 +8,8 @@ async function adminFetch(path, opts = {}) {
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}`, {
-    headers,
     ...opts,
+    headers,
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Request failed");
@@ -120,7 +120,7 @@ const billSlice = createSlice({
       .addCase(createBillThunk.fulfilled,(s, a) => {
         s.loading = false;
         s.bills.unshift(a.payload);
-        s.totalRevenue += a.payload.amount;
+        s.totalRevenue += (a.payload.amount - (a.payload.udharAmount || 0));
         s.successMsg = "Bill created successfully";
       })
       .addCase(createBillThunk.rejected, (s, a) => { s.loading = false; s.error = a.payload; });
@@ -151,7 +151,7 @@ const billSlice = createSlice({
       .addCase(deleteBillThunk.fulfilled,(s, a) => {
         s.loading = false;
         const removed = s.bills.find((b) => b._id === a.payload);
-        if (removed) s.totalRevenue -= removed.amount;
+        if (removed) s.totalRevenue -= (removed.amount - (removed.udharAmount || 0));
         s.bills   = s.bills.filter((b) => b._id !== a.payload);
         s.successMsg = "Bill deleted";
       })

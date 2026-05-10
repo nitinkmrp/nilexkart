@@ -35,6 +35,9 @@ const billSchema = new mongoose.Schema(
     receiptUrl:  { type: String, default: '' },
     receiptPublicId: { type: String, default: '' },
 
+    // Udhar (Due) Amount
+    udharAmount: { type: Number, default: 0 },
+
     // Transaction date (can be back-dated for manual entries)
     txnDate: { type: Date, default: Date.now },
   },
@@ -58,7 +61,7 @@ router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next
       ];
     }
     const bills = await Bill.find(filter).sort({ txnDate: -1 });
-    const total = bills.reduce((s, b) => s + b.amount, 0);
+    const total = bills.reduce((s, b) => s + (b.amount - (b.udharAmount || 0)), 0);
     res.json({ success: true, count: bills.length, totalRevenue: total, data: bills });
   } catch (err) { next(err); }
 });
@@ -77,12 +80,12 @@ router.post('/', roleGuard(['admin', 'editor', 'support']), upload.single('recei
   try {
     const {
       customerName, customerEmail, customerPhone,
-      txnId, amount, paymentMethod, status,
+      txnId, amount, udharAmount, paymentMethod, status,
       items, receivedBy, notes, txnDate,
     } = req.body;
 
-    if (!customerName || !customerEmail || !amount) {
-      return res.status(400).json({ success: false, message: 'customerName, customerEmail and amount are required' });
+    if (!customerName || !amount) {
+      return res.status(400).json({ success: false, message: 'customerName and amount are required' });
     }
 
     let receiptUrl = '';
@@ -96,8 +99,9 @@ router.post('/', roleGuard(['admin', 'editor', 'support']), upload.single('recei
     try { parsedItems = items ? JSON.parse(items) : []; } catch (_) {}
 
     const bill = await Bill.create({
-      customerName, customerEmail, customerPhone,
+      customerName, customerEmail: customerEmail || '', customerPhone,
       txnId, amount: Number(amount),
+      udharAmount: udharAmount ? Number(udharAmount) : 0,
       paymentMethod: paymentMethod || 'online',
       status:        status || 'paid',
       items:         parsedItems,
@@ -117,6 +121,7 @@ router.put('/:id', roleGuard(['admin', 'editor', 'support']), upload.single('rec
 
     const updates = { ...req.body };
     if (updates.amount) updates.amount = Number(updates.amount);
+    if (updates.udharAmount !== undefined) updates.udharAmount = Number(updates.udharAmount);
     if (updates.txnDate) updates.txnDate = new Date(updates.txnDate);
     if (updates.items) {
       try { updates.items = JSON.parse(updates.items); } catch (_) { delete updates.items; }
