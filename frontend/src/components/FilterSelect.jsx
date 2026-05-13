@@ -1,4 +1,7 @@
 import Select from 'react-select';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchCategories } from '../app/categorySlice';
 
 const customStyles = {
     control: (provided) => ({
@@ -27,8 +30,20 @@ const customStyles = {
 };
 
 const FilterSelect = ({setFilterList, products}) => {
-    const uniqueCategories = [...new Set(products?.map(p => p.category))].filter(Boolean);
-    const options = uniqueCategories.map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }));
+    const dispatch = useDispatch();
+    const { categories, loading } = useSelector((state) => state.categories);
+
+    useEffect(() => {
+        if (categories.length === 0) {
+            dispatch(fetchCategories());
+        }
+    }, [dispatch, categories.length]);
+
+    // Use fetched categories to create options
+    const options = categories.map(c => ({ 
+        value: c.name, 
+        label: c.name.charAt(0).toUpperCase() + c.name.slice(1) 
+    }));
 
     const handleChange = (selectedOption)=> {
         if (!selectedOption || selectedOption.value === "") {
@@ -37,12 +52,14 @@ const FilterSelect = ({setFilterList, products}) => {
             setFilterList(products.filter(item => item.category === selectedOption.value));
         }
     }
+    
     return (
     <Select
     options={options}
     defaultValue={{ value: "", label: "Filter By Category" }}
     styles={customStyles}
     onChange={handleChange}
+    isLoading={loading}
     />
     );
 };

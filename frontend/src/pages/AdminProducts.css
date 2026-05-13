@@ -435,7 +435,7 @@
 @keyframes apSlideUp { from { opacity: 0; transform: translateY(20px) }    to { opacity: 1; transform: none } }
 
 /* ═══════════════════════════════════════════════════════
-   AI ASSISTANT — Gemini Description Generator
+   AI ASSISTANT — OpenRouter Description Generator
 ═══════════════════════════════════════════════════════ */
 
 /* Bar that sits above the description fields */
