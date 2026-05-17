@@ -82,99 +82,55 @@ Return ONLY the raw JSON object, no markdown, no code fences.`;
   }
 });
 
-// POST /api/ai/generate-image
+// POST /api/ai/generate-prompt
 // Body: { productName, category }
-router.post('/generate-image', roleGuard(['admin', 'editor']), async (req, res) => {
+router.post('/generate-prompt', roleGuard(['admin', 'editor']), async (req, res) => {
   const { productName, category } = req.body;
 
   if (!productName?.trim()) {
     return res.status(400).json({ success: false, message: 'productName is required' });
   }
 
-  const ADOBE_CLIENT_ID = process.env.ADOBE_CLIENT_ID || '';
-  const ADOBE_CLIENT_SECRET = process.env.ADOBE_CLIENT_SECRET || '';
-
-  if (!GEMINI_KEY || !ADOBE_CLIENT_ID || !ADOBE_CLIENT_SECRET) {
+  // Use either Gemini or OpenRouter (we'll stick to OpenRouter here since it's already set up above)
+  if (!OPENROUTER_KEY) {
     return res.status(503).json({
       success: false,
-      message: 'Missing API keys. Please ensure GEMINI_API_KEY, ADOBE_CLIENT_ID, and ADOBE_CLIENT_SECRET are configured.',
+      message: 'Missing API keys. Please ensure OPENROUTER_API_KEY is configured.',
     });
   }
 
   try {
-    // 1. Generate a descriptive prompt using Gemini
+    // 1. Generate a descriptive prompt using OpenRouter/Gemini
     const productInfo = `${productName} ${category ? `(Category: ${category})` : ''}`;
-    const geminiPrompt = `Create a highly detailed, descriptive image generation prompt for an e-commerce product: ${productInfo}. 
-The image should be a professional studio product photography shot, clean background, 4k resolution, highly detailed. 
-Return ONLY the prompt text, no quotes or markdown. Max 100 words.`;
+    const promptText = `Create a highly detailed, descriptive image generation prompt for an e-commerce product: ${productInfo}. 
+The image should be a professional studio product photography shot, clean background, highly detailed. 
+Return ONLY the prompt text, no quotes or markdown. Max 50 words.`;
 
-    const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+    const openRouterRes = await fetch(OPENROUTER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: geminiPrompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: promptText }],
+        temperature: 0.7,
+        max_tokens: 100
       }),
     });
     
-    const geminiData = await geminiRes.json();
-    if (!geminiRes.ok) {
-      throw new Error(geminiData?.error?.message || 'Failed to generate prompt via Gemini');
+    const openRouterData = await openRouterRes.json();
+    if (!openRouterRes.ok) {
+      throw new Error(openRouterData?.error?.message || 'Failed to generate prompt via AI');
     }
-    const generatedPrompt = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const generatedPrompt = openRouterData?.choices?.[0]?.message?.content?.trim();
 
     if (!generatedPrompt) {
-      throw new Error('Gemini returned an empty prompt');
+      throw new Error('AI returned an empty prompt');
     }
 
-    // 2. Authenticate with Adobe IMS
-    const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials');
-    params.append('client_id', ADOBE_CLIENT_ID);
-    params.append('client_secret', ADOBE_CLIENT_SECRET);
-    params.append('scope', 'openid,AdobeID,firefly_api');
-
-    const authRes = await fetch('https://ims-na1.adobelogin.com/ims/token/v3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString(),
-    });
-
-    const authData = await authRes.json();
-    if (!authRes.ok) {
-      throw new Error(authData.error_description || 'Adobe Authentication Failed');
-    }
-    const accessToken = authData.access_token;
-
-    // 3. Generate Image with Adobe Firefly
-    const fireflyRes = await fetch('https://firefly-api.adobe.io/v3/images/generate', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ADOBE_CLIENT_ID,
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: generatedPrompt,
-        n: 1,
-        size: { width: 1024, height: 1024 }
-      }),
-    });
-
-    const fireflyData = await fireflyRes.json();
-    if (!fireflyRes.ok) {
-      throw new Error(fireflyData.message || 'Adobe Firefly API Error');
-    }
-
-    // fireflyData.outputs[0].image.url or similar depending on the exact Firefly v3 spec
-    // Adobe Firefly usually returns presigned URL in 'outputs'
-    const imageUrl = fireflyData?.outputs?.[0]?.image?.url || fireflyData?.outputs?.[0]?.image?.uploadUrl;
-
-    if (!imageUrl) {
-      throw new Error('Firefly generated response but no image URL was found');
-    }
-
-    return res.json({ success: true, prompt: generatedPrompt, imageUrl });
+    return res.json({ success: true, prompt: generatedPrompt });
 
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

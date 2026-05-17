@@ -36,7 +36,33 @@ const AdminProducts = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [aiLoading, setAiLoading]       = useState(false); // OpenRouter AI
   const [aiImgLoading, setAiImgLoading] = useState(false); // Gemini + Adobe AI
+  const [ccEverywhere, setCcEverywhere] = useState(null);
   const fileInputRef = useRef();
+
+  // Load Adobe Express Embed SDK
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_ADOBE_CLIENT_ID;
+    if (!clientId) {
+      console.warn("REACT_APP_ADOBE_CLIENT_ID is missing. Adobe Express Embed SDK will not initialize.");
+      return;
+    }
+
+    const loadAdobeSdk = async () => {
+      try {
+        if (!window.CCEverywhere) {
+          await import("https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js");
+        }
+        const cc = await window.CCEverywhere.initialize({
+          clientId,
+          appName: "AdminPortal",
+        });
+        setCcEverywhere(cc);
+      } catch (err) {
+        console.error("Failed to load Adobe Express Embed SDK:", err);
+      }
+    };
+    loadAdobeSdk();
+  }, []);
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
 
@@ -115,9 +141,16 @@ const AdminProducts = () => {
       toast.error("Please enter a product name first");
       return;
     }
+
+    if (!ccEverywhere) {
+      toast.error("Adobe Express Embed SDK is not initialized. Check your Client ID.");
+      return;
+    }
+
     setAiImgLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/ai/generate-image`, {
+      // 1. Get the prompt from AI
+      const res = await fetch(`${BASE_URL}/api/ai/generate-prompt`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,17 +165,54 @@ const AdminProducts = () => {
       const data = await res.json();
 
       if (!data.success) {
-        toast.error(`AI Image Error: ${data.message}`);
+        toast.error(`AI Prompt Error: ${data.message}`);
+        setAiImgLoading(false);
         return;
       }
 
-      setForm((prev) => ({ ...prev, imgUrl: data.imageUrl }));
-      setImagePreview(data.imageUrl);
-      setImageFile(null); // Clear local file if URL is generated
-      toast.success("✨ AI Image generated successfully!");
+      const generatedPrompt = data.prompt;
+      toast.success("✨ AI Prompt generated! Opening Adobe Express...");
+      setAiImgLoading(false); // Done with our own loading, Adobe UI will open
+
+      // 2. Open Adobe Express Embed SDK to generate and edit the image
+      const appConfig = {
+        appVersion: "2",
+        promptText: generatedPrompt,
+      };
+
+      const exportConfig = {
+        style: {
+          showDownloadButton: false,
+        },
+      };
+
+      const callbacks = {
+        onPublish: (publishParams) => {
+          // The user hit save/publish in Adobe Express
+          const localUrl = publishParams.asset[0].data;
+          
+          // Note: Adobe passes back a blob URL or base64. 
+          // We set it as the preview, and we need to fetch it to convert to a File object for the form.
+          setImagePreview(localUrl);
+          
+          fetch(localUrl)
+            .then(res => res.blob())
+            .then(blob => {
+              const file = new File([blob], `adobe-express-product.png`, { type: blob.type });
+              setImageFile(file);
+              setForm((prev) => ({ ...prev, imgUrl: "" })); // Clear any URL if they had one
+              toast.success("Image saved from Adobe Express!");
+            })
+            .catch(() => {
+              toast.error("Failed to process the image from Adobe Express.");
+            });
+        },
+      };
+
+      ccEverywhere.module.createImageFromText(appConfig, exportConfig, callbacks);
+      
     } catch (err) {
       toast.error(`AI Image Error: ${err.message}`);
-    } finally {
       setAiImgLoading(false);
     }
   };
