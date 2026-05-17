@@ -199,13 +199,7 @@ const AdminProducts = () => {
         }
       };
 
-      const exportConfig = {
-        style: {
-          showDownloadButton: false,
-        },
-      };
-
-      ccEverywhere.module.createImageFromText(appConfig, exportConfig);
+      ccEverywhere.module.createImageFromText(appConfig);
       
     } catch (err) {
       toast.error(`AI Image Error: ${err.message}`);
