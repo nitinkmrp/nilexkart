@@ -166,6 +166,37 @@ const AdminProducts = () => {
       const appConfig = {
         appVersion: "2",
         promptText: generatedPrompt,
+        callbacks: {
+          onPublish: (intent, publishParams) => {
+            // The user hit save/publish in Adobe Express
+            const localUrl = publishParams?.asset?.[0]?.data;
+            
+            if (!localUrl) {
+              toast.error("No image was returned from Adobe Express.");
+              return;
+            }
+
+            // Note: Adobe passes back a blob URL or base64. 
+            // We set it as the preview, and we need to fetch it to convert to a File object for the form.
+            setImagePreview(localUrl);
+            
+            fetch(localUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                const file = new File([blob], `adobe-express-product.png`, { type: blob.type });
+                setImageFile(file);
+                setForm((prev) => ({ ...prev, imgUrl: "" })); // Clear any URL if they had one
+                toast.success("Image saved from Adobe Express!");
+              })
+              .catch(() => {
+                toast.error("Failed to process the image from Adobe Express.");
+              });
+          },
+          onError: (err) => {
+            console.error("Adobe Express Error:", err);
+            toast.error("An error occurred with Adobe Express");
+          }
+        }
       };
 
       const exportConfig = {
@@ -174,30 +205,7 @@ const AdminProducts = () => {
         },
       };
 
-      const callbacks = {
-        onPublish: (publishParams) => {
-          // The user hit save/publish in Adobe Express
-          const localUrl = publishParams.asset[0].data;
-          
-          // Note: Adobe passes back a blob URL or base64. 
-          // We set it as the preview, and we need to fetch it to convert to a File object for the form.
-          setImagePreview(localUrl);
-          
-          fetch(localUrl)
-            .then(res => res.blob())
-            .then(blob => {
-              const file = new File([blob], `adobe-express-product.png`, { type: blob.type });
-              setImageFile(file);
-              setForm((prev) => ({ ...prev, imgUrl: "" })); // Clear any URL if they had one
-              toast.success("Image saved from Adobe Express!");
-            })
-            .catch(() => {
-              toast.error("Failed to process the image from Adobe Express.");
-            });
-        },
-      };
-
-      ccEverywhere.module.createImageFromText(appConfig, exportConfig, callbacks);
+      ccEverywhere.module.createImageFromText(appConfig, exportConfig);
       
     } catch (err) {
       toast.error(`AI Image Error: ${err.message}`);
