@@ -47,11 +47,8 @@ const AdminProducts = () => {
       return;
     }
 
-    const loadAdobeSdk = async () => {
+    const initAdobeSdk = async () => {
       try {
-        if (!window.CCEverywhere) {
-          await import("https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js");
-        }
         const cc = await window.CCEverywhere.initialize({
           clientId,
           appName: "AdminPortal",
@@ -61,7 +58,16 @@ const AdminProducts = () => {
         console.error("Failed to load Adobe Express Embed SDK:", err);
       }
     };
-    loadAdobeSdk();
+
+    if (window.CCEverywhere) {
+      initAdobeSdk();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js";
+      script.async = true;
+      script.onload = initAdobeSdk;
+      document.body.appendChild(script);
+    }
   }, []);
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
