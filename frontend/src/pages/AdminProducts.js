@@ -155,29 +155,11 @@ const AdminProducts = () => {
 
     setAiImgLoading(true);
     try {
-      // 1. Get the prompt from AI
-      const res = await fetch(`${BASE_URL}/api/ai/generate-prompt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("jwtToken")}`,
-        },
-        body: JSON.stringify({
-          productName: form.productName,
-          category:    form.category,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        toast.error(`AI Prompt Error: ${data.message}`);
-        setAiImgLoading(false);
-        return;
-      }
-
-      const generatedPrompt = data.prompt;
-      toast.success("✨ AI Prompt generated! Opening Adobe Express...");
+      // Bypass OpenRouter API entirely to avoid credit limits. 
+      // Construct a high-quality prompt directly from the product name and category.
+      const generatedPrompt = `Professional studio product photography shot of ${form.productName} ${form.category ? `(${form.category})` : ''}, clean background, 4k resolution, highly detailed.`;
+      
+      toast.success("✨ Opening Adobe Express...");
       setAiImgLoading(false); // Done with our own loading, Adobe UI will open
 
       // 2. Open Adobe Express Embed SDK to generate and edit the image
