@@ -48,7 +48,7 @@ Return ONLY the raw JSON object, no markdown, no code fences.`;
         'Authorization': `Bearer ${OPENROUTER_KEY}`
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash', // You can change this to any OpenRouter model like 'openai/gpt-4o-mini'
+        model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Using a free tier model // You can change this to any OpenRouter model like 'openai/gpt-4o-mini'
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.75
       }),
@@ -113,7 +113,7 @@ Return ONLY the prompt text, no quotes or markdown. Max 50 words.`;
         'Authorization': `Bearer ${OPENROUTER_KEY}`
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Using a free tier model
         messages: [{ role: 'user', content: promptText }],
         temperature: 0.7,
         max_tokens: 100
