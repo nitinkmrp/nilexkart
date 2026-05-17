@@ -3,9 +3,8 @@ import roleGuard from '../middleware/roleGuard.js';
 
 const router = express.Router();
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // POST /api/ai/describe
 // Body: { productName, category, price, target }
@@ -17,10 +16,10 @@ router.post('/describe', roleGuard(['admin', 'editor']), async (req, res) => {
     return res.status(400).json({ success: false, message: 'productName is required' });
   }
 
-  if (!GEMINI_KEY) {
+  if (!OPENROUTER_KEY) {
     return res.status(503).json({
       success: false,
-      message: 'GEMINI_API_KEY is not configured on the server. Add it to the backend environment variables.',
+      message: 'OPENROUTER_API_KEY is not configured on the server. Add it to the backend environment variables.',
     });
   }
 
@@ -42,23 +41,27 @@ Return a JSON object with exactly two keys:
 Return ONLY the raw JSON object, no markdown, no code fences.`;
 
   try {
-    const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+    const openRouterRes = await fetch(OPENROUTER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.75, maxOutputTokens: 400 },
+        model: 'google/gemini-2.5-flash', // You can change this to any OpenRouter model like 'openai/gpt-4o-mini'
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.75
       }),
     });
 
-    const geminiData = await geminiRes.json();
+    const openRouterData = await openRouterRes.json();
 
-    if (!geminiRes.ok) {
-      const errMsg = geminiData?.error?.message || 'Gemini API error';
+    if (!openRouterRes.ok) {
+      const errMsg = openRouterData?.error?.message || 'OpenRouter API error';
       return res.status(502).json({ success: false, message: errMsg });
     }
 
-    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const text = openRouterData?.choices?.[0]?.message?.content?.trim() || '';
 
     if (target === 'both') {
       try {

@@ -34,7 +34,7 @@ const AdminProducts = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [saving, setSaving]             = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [aiLoading, setAiLoading]       = useState(false); // Gemini AI
+  const [aiLoading, setAiLoading]       = useState(false); // OpenRouter AI
   const [aiImgLoading, setAiImgLoading] = useState(false); // Gemini + Adobe AI
   const fileInputRef = useRef();
 
@@ -60,7 +60,7 @@ const AdminProducts = () => {
   // Final list: prefer DB categories, fallback to whatever is on products
   const allCategoryNames = categoryNames.length > 0 ? categoryNames : productCats;
 
-  // ── Gemini AI Description Generator ─────────────────
+  // ── OpenRouter AI Description Generator ─────────────────
   const generateDescriptions = async (target = "both") => {
     if (!form.productName.trim()) {
       toast.error("Please enter a product name first");
@@ -544,13 +544,13 @@ const AdminProducts = () => {
               {/* AI Description Assistant */}
               <div className="ai-assistant-bar">
                 <div className="ai-badge">✨ AI Assistant</div>
-                <span className="ai-hint">Auto-write descriptions using Gemini AI</span>
+                <span className="ai-hint">Auto-write descriptions using OpenRouter AI</span>
                 <button
                   type="button"
                   className={`ai-gen-btn ${aiLoading ? "ai-gen-loading" : ""}`}
                   onClick={() => generateDescriptions("both")}
                   disabled={aiLoading}
-                  title="Generate both short and full description using Gemini AI"
+                  title="Generate both short and full description using OpenRouter AI"
                 >
                   {aiLoading ? (
                     <><span className="ai-spinner" /> Generating…</>
