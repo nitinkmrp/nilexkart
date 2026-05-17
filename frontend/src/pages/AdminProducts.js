@@ -8,7 +8,7 @@ import "./AdminProducts.css";
 const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
 const EMPTY_FORM = {
-  productName: "", category: "", price: "", discount: "0",
+  productName: "", category: "", sizes: "", price: "", discount: "0",
   stock: "0", shortDesc: "", description: "", imgUrl: "", avgRating: "4.5",
 };
 
@@ -35,6 +35,7 @@ const AdminProducts = () => {
   const [saving, setSaving]             = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [aiLoading, setAiLoading]       = useState(false); // Gemini AI
+  const [aiImgLoading, setAiImgLoading] = useState(false); // Gemini + Adobe AI
   const fileInputRef = useRef();
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
@@ -109,6 +110,43 @@ const AdminProducts = () => {
     }
   };
 
+  const generateImage = async () => {
+    if (!form.productName.trim()) {
+      toast.error("Please enter a product name first");
+      return;
+    }
+    setAiImgLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/ai/generate-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("jwtToken")}`,
+        },
+        body: JSON.stringify({
+          productName: form.productName,
+          category:    form.category,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        toast.error(`AI Image Error: ${data.message}`);
+        return;
+      }
+
+      setForm((prev) => ({ ...prev, imgUrl: data.imageUrl }));
+      setImagePreview(data.imageUrl);
+      setImageFile(null); // Clear local file if URL is generated
+      toast.success("✨ AI Image generated successfully!");
+    } catch (err) {
+      toast.error(`AI Image Error: ${err.message}`);
+    } finally {
+      setAiImgLoading(false);
+    }
+  };
+
   // Filtered list
   const filtered = products.filter((p) => {
     const matchCat    = catFilter === "all" || p.category === catFilter;
@@ -133,6 +171,7 @@ const AdminProducts = () => {
   const openEdit = (p) => {
     setForm({
       productName: p.productName, category: p.category,
+      sizes: p.sizes ? p.sizes.join(", ") : "",
       price: p.price, discount: p.discount || 0,
       stock: p.stock || 0, shortDesc: p.shortDesc || "",
       description: p.description || "", imgUrl: p.imgUrl || "",
@@ -412,11 +451,28 @@ const AdminProducts = () => {
                   onChange={handleImageChange}
                 />
               </div>
-              {imagePreview && (
-                <button type="button" className="ap-clear-img" onClick={() => { setImageFile(null); setImagePreview(null); setForm({...form, imgUrl: ""}); }}>
-                  Remove Image
+              
+              <div className="ap-image-actions" style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'center' }}>
+                <button 
+                  type="button" 
+                  className={`ai-gen-btn ${aiImgLoading ? "ai-gen-loading" : ""}`} 
+                  onClick={generateImage}
+                  disabled={aiImgLoading}
+                  style={{ width: 'auto' }}
+                >
+                  {aiImgLoading ? (
+                    <><span className="ai-spinner" /> Generating Image…</>
+                  ) : (
+                    <>✨ AI Generate Image</>
+                  )}
                 </button>
-              )}
+                
+                {imagePreview && (
+                  <button type="button" className="ap-clear-img" style={{ margin: 0 }} onClick={() => { setImageFile(null); setImagePreview(null); setForm({...form, imgUrl: ""}); }}>
+                    Remove Image
+                  </button>
+                )}
+              </div>
 
               {/* Or URL */}
               <div className="ap-form-group">
@@ -457,23 +513,32 @@ const AdminProducts = () => {
                     onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
                 </div>
                 <div className="ap-form-group">
-                  <label>Discount (%)</label>
-                  <input className="ap-input" type="number" min="0" max="100" value={form.discount}
-                    onChange={(e) => setForm({ ...form, discount: e.target.value })} placeholder="0" />
+                  <label>Sizes (e.g. S, M, L)</label>
+                  <input className="ap-input" value={form.sizes}
+                    onChange={(e) => setForm({ ...form, sizes: e.target.value })} placeholder="S, M, L, XL" />
                 </div>
               </div>
 
               <div className="ap-form-row">
                 <div className="ap-form-group">
+                  <label>Discount (%)</label>
+                  <input className="ap-input" type="number" min="0" max="100" value={form.discount}
+                    onChange={(e) => setForm({ ...form, discount: e.target.value })} placeholder="0" />
+                </div>
+                <div className="ap-form-group">
                   <label>Stock Units</label>
                   <input className="ap-input" type="number" min="0" value={form.stock}
                     onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0" />
                 </div>
+              </div>
+
+              <div className="ap-form-row">
                 <div className="ap-form-group">
                   <label>Avg Rating (0–5)</label>
                   <input className="ap-input" type="number" min="0" max="5" step="0.1" value={form.avgRating}
                     onChange={(e) => setForm({ ...form, avgRating: e.target.value })} placeholder="4.5" />
                 </div>
+                <div className="ap-form-group"></div>
               </div>
 
               {/* AI Description Assistant */}

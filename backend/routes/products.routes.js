@@ -10,6 +10,7 @@ const productSchema = new mongoose.Schema(
   {
     productName:  { type: String, required: true, trim: true },
     category:     { type: String, required: true, trim: true },
+    sizes:        { type: [String], default: [] },
     price:        { type: Number, required: true, min: 0 },
     discount:     { type: Number, default: 0, min: 0, max: 100 },
     stock:        { type: Number, default: 0, min: 0 },
@@ -48,7 +49,7 @@ router.get('/:id', async (req, res, next) => {
 // ── POST /api/products — create product (admin only) ──
 router.post('/', roleGuard(['admin', 'editor']), upload.single('image'), async (req, res, next) => {
   try {
-    const { productName, category, price, discount, stock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
+    const { productName, category, sizes, price, discount, stock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
 
     if (!productName || !category || price === undefined) {
       return res.status(400).json({ success: false, message: 'productName, category, and price are required' });
@@ -62,8 +63,11 @@ router.post('/', roleGuard(['admin', 'editor']), upload.single('image'), async (
       publicId = req.file.filename;    // Cloudinary public_id
     }
 
+    const parsedSizes = typeof sizes === 'string' ? sizes.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(sizes) ? sizes : []);
+
     const product = await Product.create({
       productName, category,
+      sizes:      parsedSizes,
       price:      Number(price),
       discount:   Number(discount  || 0),
       stock:      Number(stock     || 0),
@@ -86,6 +90,10 @@ router.put('/:id', roleGuard(['admin', 'editor']), upload.single('image'), async
     if (updates.discount)  updates.discount  = Number(updates.discount);
     if (updates.stock)     updates.stock     = Number(updates.stock);
     if (updates.avgRating) updates.avgRating = Number(updates.avgRating);
+    
+    if (typeof updates.sizes === 'string') {
+      updates.sizes = updates.sizes.split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     if (req.file) {
       // Delete old Cloudinary image if it was uploaded (has a publicId)

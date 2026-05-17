@@ -32,16 +32,16 @@ const Home = () => {
       {discoutProducts.length > 0 && (
         <Section
           title="Big Discount"
-          bgColor="#f6f9fc"
+          bgColor="#ffffff"
           productItems={discoutProducts}
         />
       )}
       <Section
         title="New Arrivals"
-        bgColor="white"
+        bgColor="#ffffff"
         productItems={newArrivalData}
       />
-      <Section title="Best Sales" bgColor="#f6f9fc" productItems={bestSales} />
+      <Section title="Best Sales" bgColor="#ffffff" productItems={bestSales} />
     </Fragment>
   );
 };

@@ -43,7 +43,7 @@ router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next
         const obj = c.toObject();
         if (Bill) {
           const bills = await Bill.find({ customerPhone: c.mobile }).sort({ txnDate: -1 });
-          obj.totalSpend   = bills.reduce((s, b) => s + (b.txnType === 'give' ? -b.amount : b.amount), 0);
+          obj.totalSpend   = bills.reduce((s, b) => s + b.amount, 0);
           obj.txnCount     = bills.length;
           obj.lastTxnDate  = bills[0]?.txnDate || null;
         } else {
@@ -80,7 +80,7 @@ router.get('/:id/timeline', roleGuard(['admin', 'editor', 'support']), async (re
     if (customer.email) orClauses.push({ customerEmail: customer.email });
 
     const bills = await Bill.find({ $or: orClauses }).sort({ txnDate: -1 });
-    const totalSpend = bills.reduce((s, b) => s + (b.txnType === 'give' ? -b.amount : b.amount), 0);
+    const totalSpend = bills.reduce((s, b) => s + b.amount, 0);
 
     res.json({ success: true, data: { customer, bills, totalSpend } });
   } catch (err) { next(err); }

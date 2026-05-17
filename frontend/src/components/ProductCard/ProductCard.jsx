@@ -99,12 +99,21 @@ const ProductCard = ({ title, productItem }) => {
       {title === "Big Discount" ? (
         <span className="discount">{productItem.discount}% Off</span>
       ) : null}
-      <img
-        loading="lazy"
-        onClick={() => handelClick()}
-        src={productItem.imgUrl || ''}
-        alt={productItem.productName}
-      />
+      <div className="product-img-wrapper">
+        <img
+          loading="lazy"
+          onClick={() => handelClick()}
+          src={productItem.imgUrl || ''}
+          alt={productItem.productName}
+        />
+      </div>
+      {productItem.sizes && productItem.sizes.length > 0 && (
+        <div className="product-sizes">
+          {productItem.sizes.map((size, index) => (
+            <span key={index} className="size-chip">{size}</span>
+          ))}
+        </div>
+      )}
       <button
         className={`product-waitlist-btn ${wishlisted ? "wishlisted" : ""}`}
         onClick={handleWaitlist}
@@ -117,11 +126,6 @@ const ProductCard = ({ title, productItem }) => {
       <div className="product-details">
         <h3 onClick={() => handelClick()}>{productItem.productName}</h3>
         <div className="rate">
-          <i className="fa fa-star"></i>
-          <i className="fa fa-star"></i>
-          <i className="fa fa-star"></i>
-          <i className="fa fa-star"></i>
-          <i className="fa fa-star"></i>
         </div>
         <div className="price">
           <h4>₹{productItem.price}</h4>

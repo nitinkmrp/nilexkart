@@ -1,6 +1,7 @@
 import React from "react"
 import "./style.css"
 import { Col, Container, Row } from "react-bootstrap"
+import { Link } from "react-router-dom"
 
 const Footer = () => {
   return (
@@ -44,12 +45,10 @@ const Footer = () => {
           <Col md={3} sm={6} className="box">
             <h2>Customer Care</h2>
             <ul>
-              <li>Help Center</li>
-              <li>How to Buy</li>
-              <li>Track Your Order</li>
-              <li>Returns &amp; Refunds</li>
-              <li>Terms &amp; Conditions</li>
-              <li>Privacy Policy</li>
+              <li><Link to="/shipping-policy" style={{color: 'inherit', textDecoration: 'none'}}>Shipping Policy</Link></li>
+              <li><Link to="/refund-policy" style={{color: 'inherit', textDecoration: 'none'}}>Returns &amp; Refunds</Link></li>
+              <li><Link to="/terms-and-conditions" style={{color: 'inherit', textDecoration: 'none'}}>Terms &amp; Conditions</Link></li>
+              <li><Link to="/privacy-policy" style={{color: 'inherit', textDecoration: 'none'}}>Privacy Policy</Link></li>
             </ul>
           </Col>
 

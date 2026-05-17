@@ -23,6 +23,12 @@ const AdminCategories  = lazy(() => import("./pages/AdminCategories"));
 const AdminBills       = lazy(() => import("./pages/AdminBills"));
 const AdminCustomers   = lazy(() => import("./pages/AdminCustomers"));
 
+// Policy Pages
+const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
+const RefundPolicy   = lazy(() => import("./pages/RefundPolicy"));
+const ShippingPolicy = lazy(() => import("./pages/ShippingPolicy"));
+const TermsCondition = lazy(() => import("./pages/TermsCondition"));
+
 function App() {
   return (
     <Suspense fallback={<Loader />}>
@@ -54,6 +60,12 @@ function App() {
           <Route path="/admin/categories"   element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminCategories /></AdminGuard>} />
           <Route path="/admin/bills"        element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminBills /></AdminGuard>} />
           <Route path="/admin/customers"    element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminCustomers /></AdminGuard>} />
+
+          {/* Policy Routes */}
+          <Route path="/privacy-policy"         element={<PrivacyPolicy />} />
+          <Route path="/refund-policy"          element={<RefundPolicy />} />
+          <Route path="/shipping-policy"        element={<ShippingPolicy />} />
+          <Route path="/terms-and-conditions"   element={<TermsCondition />} />
         </Routes>
         <Footer />
       </Router>

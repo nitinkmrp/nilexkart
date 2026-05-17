@@ -1,31 +1,98 @@
-.nav-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0f3460, #16213e);
-  color: #fff;
+.navbar {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #eaeaea;
+  padding: 15px 0 !important;
+  transition: all 0.3s ease;
+}
+
+.navbar.fixed {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.navbar-container {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
+  justify-content: space-between;
 }
 
 .navbar-brand {
-  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #000 !important;
 }
 
-.nav-link {
-  font-weight: 500;
-  color: #333 !important;
+.navbar-brand .logo {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.navbar-link {
+  text-decoration: none;
+  color: #000;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  padding: 8px 16px;
   transition: color 0.2s;
+  letter-spacing: 0.5px;
 }
 
-.nav-link:hover {
-  color: #0f3460 !important;
+.navbar-link:hover {
+  color: #0055ff; /* Electric Blue Accent */
 }
 
-.dropdown-item:active {
-  background-color: #0f3460;
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: 0.2s;
 }
+
+.nav-icon:hover {
+  fill: #0055ff;
+}
+
+.cart {
+  position: relative;
+  margin-left: 15px;
+}
+
+.cart::after {
+  content: attr(data-num);
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background-color: #0055ff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-cart {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .media-cart {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-right: 15px;
+  }
+  .expanded-cart {
+    display: none !important;
+  }
+}
+

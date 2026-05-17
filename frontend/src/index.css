@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;600;700&display=swap");
 
 * {
   padding: 0;
@@ -13,9 +13,17 @@ html {
 body {
   background-color: #ffffff;
   margin: 0;
-  font-family: "Lato", sans-serif;
+  font-family: "Inter", sans-serif;
+  color: #000000;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Oswald", sans-serif;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 body,
@@ -58,7 +66,9 @@ button {
 .heading h1 {
   width: fit-content;
   text-align: center;
-  margin: 20px auto 30px !important;
+  margin: 20px auto 40px !important;
+  font-size: 2rem;
+  letter-spacing: 1px;
 }
 
 .images-container {
@@ -70,7 +80,7 @@ button {
 .homeSlide {
   display: flex;
   justify-content: center;
-  background-color: #f6f9fc;
+  background-color: #ffffff;
   padding-bottom: 0 !important;
 }
 

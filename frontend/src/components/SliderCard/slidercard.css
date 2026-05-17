@@ -1,45 +1,104 @@
-.homeSlide .box {
-    margin-top: 80px;
-    padding: 0 40px 60px;
+.hero-slide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 40px;
+  min-height: 500px;
 }
 
-.homeSlide h1 {
-    font-size: 45px;
-    line-height: 55px;
-    margin: 50px 0 20px 0;
+.hero-content {
+  flex: 1;
+  max-width: 50%;
 }
 
-.homeSlide p {
-    margin: 20px 0;
+.hero-title {
+  font-size: 3.5rem;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  color: #000;
 }
 
-.homeSlide ul {
-    position: absolute;
-    bottom: 20px;
+.hero-desc {
+  font-size: 1.1rem;
+  color: #555;
+  margin-bottom: 35px;
+  max-width: 80%;
+  font-weight: 400;
 }
 
-.homeSlide ul li {
-    border: 2px solid #b8b7b7;
-    border-radius: 50%;
-    padding: 10px;
+.hero-btn {
+  display: inline-block;
+  background-color: #0055ff;
+  color: #fff !important;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 32px;
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
 }
 
-.homeSlide ul li button {
-    background: transparent !important;
-    color: transparent !important;
+.hero-btn:hover {
+  background-color: #000;
+  color: #fff;
+  transform: translateY(-2px);
 }
 
-.homeSlide ul li button::before {
-    font-size: 15px !important;
-    color: #0f3460;
-    position: absolute;
-    top: 2px;
-    left: 0;
-    margin: auto;
+.hero-image-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
 }
 
-.homeSlide .box img {
-    width: 100%;
-    max-height: 300px;
-    object-fit: contain;
+.hero-image {
+  width: 100%;
+  max-width: 450px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgba(0,0,0,0.1));
+}
+
+@media (max-width: 768px) {
+  .hero-slide {
+    flex-direction: column-reverse;
+    text-align: center;
+    padding: 40px 20px;
+    min-height: auto;
+  }
+  
+  .hero-content {
+    max-width: 100%;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-desc {
+    max-width: 100%;
+  }
+
+  .hero-image-wrapper {
+    margin-bottom: 30px;
+    justify-content: center;
+  }
+}
+
+/* Slick overrides */
+.homeSlide .slick-dots {
+  bottom: 20px;
+}
+
+.homeSlide .slick-dots li button:before {
+  font-size: 12px;
+  color: #ccc;
+  opacity: 1;
+}
+
+.homeSlide .slick-dots li.slick-active button:before {
+  color: #0055ff;
 }

@@ -1,129 +1,135 @@
+.product {
+    background: #fff;
+    padding: 0;
+    position: relative;
+    margin: 10px;
+    border: none;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.product-img-wrapper {
+    overflow: hidden;
+    position: relative;
+    background-color: #f8f9fa;
+}
+
 .product img {
     width: 100%;
-    height: 200px !important;
-    object-fit: contain;
+    height: 300px !important;
+    object-fit: cover;
     cursor: pointer;
+    transition: transform 0.4s ease;
+}
+
+.product:hover img {
+    transform: scale(1.05);
 }
 
 .discount {
     position: absolute;
-    top: 0;
-    left: 0;
-    background: #0f3460;
-    padding: 3px 10px;
-    font-size: 12px;
-    border-radius: 50px;
+    top: 10px;
+    left: 10px;
+    background: #000;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
     color: #fff;
-    margin: 10px;
-}
-
-.product {
-    background: #fff;
-    padding: 20px;
-    position: relative;
-    border-radius: 8px;
-    box-shadow: rgb(3 0 71 / 9%) 0px 1px 3px;
-    margin: 10px;
+    z-index: 2;
+    letter-spacing: 1px;
 }
 
 .product h3 {
-    margin: 10px 0;
-    font-weight: 500;
-    font-size: 17px;
+    margin: 5px 0 5px;
+    font-weight: 600;
+    font-size: 15px;
     cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.product .rate i {
-    font-size: 15px;
-    color: #ffcd4e;
-    margin: 5px 5px 5px 0;
+.product-sizes {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.size-chip {
+    font-size: 10px;
+    font-family: 'Oswald', sans-serif;
+    color: #555;
+    border: 1px solid #ddd;
+    padding: 2px 6px;
+    background: #fff;
+    cursor: default;
+    transition: all 0.2s ease;
+}
+
+.size-chip:hover {
+    border-color: #000;
+    color: #000;
+}
+
+.product .rate {
+    display: none; /* Hide standard ratings for a cleaner look */
 }
 
 .product .price {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items:center;
-    color: black;
+    color: #000;
+    margin-top: 5px;
 }
 
 .price h4 {
-    margin: 20px 0 10px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
 }
 
-.price button {
-    background: none;
-    color: #0f3460;
-    font-size: 20px;
-    transition: 0.5s;
-    border: 1px solid rgb(3 0 71 / 9%);
-    width: 35px;
-    height: 35px;
-    border-radius: 5px;
-}
-
-.price button:hover {
-    cursor: pointer;
-    background-color: #0f3460;
+.price button.add {
+    background: #000;
     color: #fff;
-}
-
-button.add {
+    font-size: 18px;
+    transition: 0.3s;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 25px;
-    border-radius: 50%;
-}
-
-.product-like {
-    position: absolute;
-    top: 0;
-    right: 0;
-    margin: 10px;
-    opacity: 0;
-    transition: 0.5s;
-}
-
-.product-like label {
-    background-color: #0f3460;
-    padding: 1px 10px;
-    font-size: 12px;
-    color: white;
-    border-radius: 50px;
-}
-
-.product-like ion-icon {
-    font-size: 20px;
-    margin: 10px 3px;
     cursor: pointer;
 }
 
-.product:hover .product-like {
-    opacity: 1;
+.price button.add:hover {
+    background-color: #0055ff;
 }
 
 /* ── Waitlist Button ── */
 .product-waitlist-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(15, 52, 96, 0.15);
+    top: 10px;
+    right: 10px;
+    background: #fff;
+    border: none;
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     opacity: 0;
     transform: scale(0.85);
-    transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     z-index: 2;
-    padding: 0;
-    line-height: 1;
 }
 
 .product:hover .product-waitlist-btn {
@@ -132,17 +138,16 @@ button.add {
 }
 
 .product-waitlist-btn:hover {
-    background: #fff8e1;
-    box-shadow: 0 4px 14px rgba(255, 193, 7, 0.35);
-    transform: scale(1.12) !important;
+    background: #000;
+    color: #fff;
+    transform: scale(1.1) !important;
 }
 
 .product-waitlist-btn.wishlisted {
     opacity: 1;
     transform: scale(1);
-    background: #fff3cd;
-    border-color: #ffc107;
-    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.4);
+    background: #0055ff;
+    color: #fff;
 }
 
 .product-waitlist-btn:disabled {
