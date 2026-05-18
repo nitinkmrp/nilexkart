@@ -8,6 +8,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AdminGuard from "./components/AdminGuard";
 
+
 // Existing pages
 const Home    = lazy(() => import("./pages/Home"));
 const Shop    = lazy(() => import("./pages/Shop"));
@@ -20,6 +21,7 @@ const Profile      = lazy(() => import("./pages/Profile"));
 const AdminUsers   = lazy(() => import("./pages/AdminUsers"));
 const AdminProducts    = lazy(() => import("./pages/AdminProducts"));
 const AdminCategories  = lazy(() => import("./pages/AdminCategories"));
+const Register = lazy(() => import("./pages/Register"));
 const AdminBills       = lazy(() => import("./pages/AdminBills"));
 const AdminCustomers   = lazy(() => import("./pages/AdminCustomers"));
 
@@ -60,6 +62,7 @@ function App() {
           <Route path="/admin/categories"   element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminCategories /></AdminGuard>} />
           <Route path="/admin/bills"        element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminBills /></AdminGuard>} />
           <Route path="/admin/customers"    element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminCustomers /></AdminGuard>} />
+          <Route path="/register" element={<Register/>} />
 
           {/* Policy Routes */}
           <Route path="/privacy-policy"         element={<PrivacyPolicy />} />

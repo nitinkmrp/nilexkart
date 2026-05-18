@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Adobe SDK Test</title>
+  <script src="https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js"></script>
+</head>
+<body>
+  <h2>Adobe SDK Diagnostic Test</h2>
+  <button id="btn" style="font-size: 20px; padding: 15px; margin-bottom: 20px;">Open Adobe Express Generate Image UI</button>
+  <div id="logs" style="font-family: monospace; white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll;"></div>
+  
+  <script>
+    function log(msg) {
+      document.getElementById('logs').innerText += msg + '\n';
+      console.log(msg);
+    }
+
+    const clientId = "88ba2be04bb645e2a23f112c8844b656";
+    let ccEverywhere;
+    
+    window.onload = async () => {
+      try {
+        log("Initializing Adobe Express Embed SDK...");
+        ccEverywhere = await window.CCEverywhere.initialize({
+          clientId,
+          appName: "TestApp",
+        });
+        log("✅ SDK Initialized successfully!");
+      } catch (err) {
+        log("❌ SDK Error: " + err.message);
+      }
+    };
+
+    document.getElementById("btn").onclick = () => {
+      if (!ccEverywhere) return alert("SDK not initialized yet. Check logs.");
+      
+      log("Button clicked. Attempting to open createImageFromText module...");
+      
+      const appConfig = {
+        appVersion: "2",
+        promptText: "A futuristic sports car, highly detailed, 4k",
+        callbacks: {
+          onPublish: (intent, publishParams) => {
+            log("onPublish called! Image generation saved.");
+            log(JSON.stringify(publishParams, null, 2));
+          },
+          onError: (err) => {
+            log("onError called! Adobe UI returned an error.");
+            log(err.message || err.toString());
+          }
+        }
+      };
+      
+      try {
+        ccEverywhere.module.createImageFromText(appConfig);
+        log("module.createImageFromText() executed without throwing.");
+      } catch (e) {
+        log("❌ CRASH when calling module: " + e.message);
+      }
+    };
+  </script>
+</body>
+</html>
