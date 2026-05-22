@@ -15,8 +15,13 @@ const Product = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!id) return;
+    
+    // Sanitize ID to prevent URL artifacts from breaking the API request
+    const cleanId = id.split('?')[0].replace(/[^a-zA-Z0-9]/g, '');
+
     setLoading(true);
-    fetch(`${BASE_URL}/api/products/${id}`)
+    fetch(`${BASE_URL}/api/products/${cleanId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -27,7 +32,7 @@ const Product = () => {
       .then((res) => res && res.json())
       .then((data) => {
         if (data && data.success) {
-          setRelatedProducts(data.data.filter((p) => p._id !== id));
+          setRelatedProducts(data.data.filter((p) => p._id !== cleanId));
         }
       })
       .catch((err) => console.error("Error fetching product details:", err))
