@@ -9,7 +9,7 @@ const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.o
 
 const EMPTY_FORM = {
   productName: "", category: "", sizes: "", price: "", discount: "0",
-  stock: "0", shortDesc: "", description: "", imgUrl: "", avgRating: "4.5",
+  stock: "0", sizeStock: {}, shortDesc: "", description: "", imgUrl: "", avgRating: "4.5",
 };
 
 const AdminProducts = () => {
@@ -46,29 +46,38 @@ const AdminProducts = () => {
       console.warn("REACT_APP_ADOBE_CLIENT_ID is missing. Adobe Express Embed SDK will not initialize.");
       return;
     }
+    // Guard: prevent double-init from React StrictMode or HMR
+    if (window.__adobeSdkInitializing || window.__adobeSdkReady) return;
+    window.__adobeSdkInitializing = true;
 
     const initAdobeSdk = async () => {
       try {
-        const cc = await window.CCEverywhere.initialize({
-          clientId,
-          appName: "AdminPortal",
-        });
+        if (window.__adobeSdkReady) return;
+        const cc = await window.CCEverywhere.initialize({ clientId, appName: "AdminPortal" });
         setCcEverywhere(cc);
+        window.__adobeSdkReady = true;
       } catch (err) {
         console.error("Failed to load Adobe Express Embed SDK:", err);
+      } finally {
+        window.__adobeSdkInitializing = false;
       }
     };
 
     if (window.CCEverywhere) {
       initAdobeSdk();
     } else {
-      const script = document.createElement("script");
-      script.src = "https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js";
-      script.async = true;
-      script.onload = initAdobeSdk;
-      document.body.appendChild(script);
+      if (!document.getElementById("adobe-cc-sdk")) {
+        const script = document.createElement("script");
+        script.id    = "adobe-cc-sdk";
+        script.src   = "https://cc-embed.adobe.com/sdk/v4/CCEverywhere.js";
+        script.async = true;
+        script.onload  = initAdobeSdk;
+        script.onerror = () => { window.__adobeSdkInitializing = false; };
+        document.body.appendChild(script);
+      }
     }
   }, []);
+
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
 
@@ -229,9 +238,19 @@ const AdminProducts = () => {
   };
 
   const openEdit = (p) => {
+    // Reconstruct sizeStock from product data (may be a Map object from Mongoose)
+    let ss = {};
+    if (p.sizeStock) {
+      if (p.sizeStock instanceof Map) {
+        p.sizeStock.forEach((v, k) => { ss[k] = v; });
+      } else {
+        ss = { ...p.sizeStock };
+      }
+    }
     setForm({
       productName: p.productName, category: p.category,
       sizes: p.sizes ? p.sizes.join(", ") : "",
+      sizeStock: ss,
       price: p.price, discount: p.discount || 0,
       stock: p.stock || 0, shortDesc: p.shortDesc || "",
       description: p.description || "", imgUrl: p.imgUrl || "",
@@ -259,7 +278,14 @@ const AdminProducts = () => {
     setSaving(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      // Append all form fields except sizeStock (handled separately)
+      Object.entries(form).forEach(([k, v]) => {
+        if (k !== "sizeStock") fd.append(k, v);
+      });
+      // Append sizeStock as JSON
+      if (form.sizeStock && Object.keys(form.sizeStock).length > 0) {
+        fd.append("sizeStock", JSON.stringify(form.sizeStock));
+      }
       if (imageFile) fd.append("image", imageFile);
 
       const headers = {};
@@ -618,7 +644,6 @@ const AdminProducts = () => {
                       </button>
                     ))}
                   </div>
-                  {/* Custom input for non-preset values */}
                   <input
                     className="ap-input" type="number" min="0" max="100"
                     value={form.discount}
@@ -627,10 +652,62 @@ const AdminProducts = () => {
                     style={{ marginTop: 8 }}
                   />
                 </div>
+
+                {/* ── Stock section ── */}
                 <div className="ap-form-group">
-                  <label>Stock Units</label>
-                  <input className="ap-input" type="number" min="0" value={form.stock}
-                    onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0" />
+                  {(() => {
+                    const activeSizes = (form.sizes || "")
+                      .split(",").map(s => s.trim()).filter(Boolean);
+
+                    if (activeSizes.length === 0) {
+                      // No sizes → single total stock input
+                      return (
+                        <>
+                          <label>Stock Units</label>
+                          <input
+                            className="ap-input" type="number" min="0"
+                            value={form.stock}
+                            onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                            placeholder="0"
+                          />
+                        </>
+                      );
+                    }
+
+                    // Has sizes → per-size stock inputs
+                    const sizeStock = form.sizeStock || {};
+                    const total = activeSizes.reduce((s, sz) => s + Number(sizeStock[sz] || 0), 0);
+
+                    return (
+                      <>
+                        <label>
+                          Stock per Size
+                          <span className="ap-hint" style={{ marginLeft: 8 }}>
+                            Total: <strong>{total}</strong> units
+                          </span>
+                        </label>
+                        <div className="ap-size-stock-grid">
+                          {activeSizes.map((sz) => (
+                            <div key={sz} className="ap-size-stock-item">
+                              <span className="ap-size-stock-label">{sz}</span>
+                              <input
+                                type="number" min="0"
+                                className="ap-size-stock-input"
+                                value={sizeStock[sz] ?? ""}
+                                placeholder="0"
+                                onChange={(e) => {
+                                  const val = Number(e.target.value) || 0;
+                                  const next = { ...sizeStock, [sz]: val };
+                                  const newTotal = activeSizes.reduce((s, s2) => s + Number(next[s2] || 0), 0);
+                                  setForm({ ...form, sizeStock: next, stock: String(newTotal) });
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 

@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 
 const BASE_URL = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 
-const DEFAULT_SIZES = []; // No defaults — only show what admin set
 const ONE_SIZE_LABEL = "ONE SIZE";
 
 const ProductCard = ({ title, productItem }) => {
@@ -26,10 +25,13 @@ const ProductCard = ({ title, productItem }) => {
     : [];
   const hasNoSizes = sizes.length === 0;
 
-  const hasDiscount   = productItem.discount > 0;
-  const originalPrice = hasDiscount
-    ? Math.round(productItem.price / (1 - productItem.discount / 100))
-    : null;
+  // Discount display — DB: price = sale price, discount = %
+  // MRP is back-calculated: mrp = price / (1 - discount/100)
+  const hasDiscount = (productItem.discount || 0) > 0;
+  const salePrice   = productItem.price || 0;
+  const mrp         = hasDiscount
+    ? Math.round(salePrice / (1 - productItem.discount / 100))
+    : salePrice;
 
   /* ── waitlist check on mount ── */
   useEffect(() => {
@@ -98,7 +100,7 @@ const ProductCard = ({ title, productItem }) => {
   return (
     <Col md={3} sm={5} xs={10} className="product mtop">
 
-      {/* Discount badge */}
+      {/* ── Discount ribbon badge — dynamic from DB ── */}
       {hasDiscount && (
         <span className="discount">{productItem.discount}% Off</span>
       )}
@@ -162,12 +164,19 @@ const ProductCard = ({ title, productItem }) => {
 
         <div className="price">
           <div className="price-info">
-            <h4>₹{productItem.price}</h4>
+            {/* Sale price — prominent */}
+            <h4 className={hasDiscount ? "price-sale" : ""}>
+              ₹{salePrice.toLocaleString("en-IN")}
+            </h4>
+            {/* MRP strikethrough + savings badge */}
             {hasDiscount && (
-              <span className="original-price-card">₹{originalPrice}</span>
+              <>
+                <span className="original-price-card">₹{mrp.toLocaleString("en-IN")}</span>
+                <span className="price-savings-badge">-{productItem.discount}%</span>
+              </>
             )}
           </div>
-          {/* "View" link replaces the old + button */}
+          {/* View → button */}
           <button
             aria-label="View product"
             type="button"

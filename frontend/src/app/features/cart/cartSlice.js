@@ -14,8 +14,15 @@ export const cartSlice = createSlice({
   initialState,
   reducers: {
     addToCart: (state, action) => {
-      const productToAdd = action.payload.product;
+      const raw      = action.payload.product;
       const quantity = action.payload.num;
+      // DB price is already the sale price — store mrp for cart display strikethrough
+      const salePrice = raw.price || 0;
+      const disc      = raw.discount || 0;
+      const mrp       = disc > 0
+        ? Math.round(salePrice / (1 - disc / 100))
+        : salePrice;
+      const productToAdd = { ...raw, mrp, price: salePrice };
       const productExit = state.cartList.find(
         (item) => item.id === productToAdd.id && item.selectedSize === productToAdd.selectedSize
       );

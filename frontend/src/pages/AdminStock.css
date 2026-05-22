@@ -942,3 +942,66 @@
   border-color: #3b82f6;
 }
 
+/* ════════════════════════════════════════
+   PER-SIZE STOCK GRID (stock table)
+   ════════════════════════════════════════ */
+.as-size-stock-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.as-size-stock-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.as-size-stock-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.as-size-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #60a5fa;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  width: 100%;
+  text-align: center;
+}
+
+.as-size-qty-input {
+  width: 48px;
+  height: 32px;
+  text-align: center;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.18s;
+  font-family: 'Inter', sans-serif;
+}
+.as-size-qty-input:focus {
+  border-color: #3b82f6;
+  background: rgba(59,130,246,0.08);
+}
+.as-size-qty-input::-webkit-inner-spin-button { opacity: 0; }
+.as-size-qty-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.as-size-total {
+  font-size: 11px;
+  color: #64748b;
+  padding-top: 2px;
+}
+.as-size-total strong { color: #94a3b8; }

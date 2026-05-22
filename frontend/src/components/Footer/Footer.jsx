@@ -33,13 +33,14 @@ const Footer = () => {
           <Col md={2} sm={6} className="box">
             <h2>Quick Links</h2>
             <ul>
-              <li><a href="/">Home</a></li>
-              <li><a href="/shop">Shop</a></li>
-              <li><a href="/cart">Cart</a></li>
-              <li><a href="/profile">My Account</a></li>
-              <li><a href="/payment">Checkout</a></li>
+              <li><Link to="/">Home</Link></li>
+              <li><Link to="/shop">Shop</Link></li>
+              <li><Link to="/cart">Cart</Link></li>
+              <li><Link to="/profile">My Account</Link></li>
+              <li><Link to="/payment">Checkout</Link></li>
             </ul>
           </Col>
+
 
           {/* ── Customer Care ─────────────────────────── */}
           <Col md={3} sm={6} className="box">
@@ -83,12 +84,15 @@ const Footer = () => {
             <div className="footer-map">
               <iframe
                 title="Nilex Shirts Location"
+                width="100%"
+                height="200"
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3578.4!2d82.57!3d25.91!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDU0JzM2LjAiTiA4MsKwMzQnMTIuMCJF!5e0!3m2!1sen!2sin!4v1!5m2!1sen!2sin&q=Nilex+Shirts,+Kaseru+Chauraha,+Rampur+Nisfi,+Bharthipur,+Uttar+Pradesh+222203"
                 allowFullScreen=""
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               ></iframe>
             </div>
+
           </Col>
 
         </Row>

@@ -9,17 +9,31 @@ const PRESETS  = [0, 5, 10, 15, 20, 25, 30, 40, 50, 70];
 
 /* ──────────────────────────────────────
    Helper: save one product's discount
+   DB model: price = current sale price, discount = %
+   MRP = price / (1 - oldDiscount/100)
+   newSalePrice = MRP * (1 - newDiscount/100)
    ────────────────────────────────────── */
-async function pushDiscount(product, discount) {
+async function pushDiscount(product, newDiscount) {
   const token = localStorage.getItem("jwtToken");
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // Step 1: recover MRP from current sale price + old discount
+  const oldDiscount = product.discount || 0;
+  const mrp = oldDiscount > 0
+    ? Math.round(product.price / (1 - oldDiscount / 100))
+    : product.price;
+
+  // Step 2: compute new sale price from MRP + new discount
+  const newSalePrice = newDiscount > 0
+    ? Math.round(mrp * (1 - newDiscount / 100))
+    : mrp;
+
   const fd = new FormData();
   fd.append("productName", product.productName);
   fd.append("category",    product.category);
-  fd.append("price",       product.price);
-  fd.append("discount",    discount);
+  fd.append("price",       newSalePrice);   // ← updated sale price
+  fd.append("discount",    newDiscount);
   fd.append("stock",       product.stock ?? 0);
   fd.append("shortDesc",   product.shortDesc   ?? "");
   fd.append("description", product.description ?? "");
@@ -39,19 +53,29 @@ const AdminDiscounts = () => {
   const navigate    = useNavigate();
   const currentUser = useSelector((s) => s.users.currentUser);
 
-  const [products,  setProducts]  = useState([]);
-  const [loading,   setLoading]   = useState(false);
-  const [edits,     setEdits]     = useState({}); // { [productId]: number }
-  const [saving,    setSaving]    = useState(false);
+  const [products,   setProducts]   = useState([]);
+  const [dbCats,     setDbCats]     = useState([]); // from /api/categories (real source of truth)
+  const [loading,    setLoading]    = useState(false);
+  const [edits,      setEdits]      = useState({});
+  const [saving,     setSaving]     = useState(false);
 
   // Wizard state
-  const [selectedDisc, setSelectedDisc] = useState(null); // % number
-  const [selectedCat,  setSelectedCat]  = useState(null); // category string
+  const [selectedDisc, setSelectedDisc] = useState(null);
+  const [selectedCat,  setSelectedCat]  = useState(null);
 
   // Individual table search
   const [search, setSearch] = useState("");
 
   useEffect(() => { if (!currentUser) navigate("/"); }, [currentUser, navigate]);
+
+  /* ── Fetch categories from the real categories API ── */
+  const fetchDbCategories = useCallback(async () => {
+    try {
+      const res  = await fetch(`${BASE_URL}/api/categories`);
+      const data = await res.json();
+      if (data.success) setDbCats(data.data);
+    } catch { /* silent */ }
+  }, []);
 
   /* ── Fetch products ── */
   const fetchProducts = useCallback(async () => {
@@ -69,10 +93,31 @@ const AdminDiscounts = () => {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    fetchDbCategories();
+    fetchProducts();
+  }, [fetchDbCategories, fetchProducts]);
 
-  /* ── Unique categories ── */
-  const categories = [...new Set(products.map((p) => p.category).filter(Boolean))];
+  /* ── Build merged category list:
+       1. Start with official DB categories (isActive)
+       2. Add any product-only categories not yet in DB list
+  ── */
+  const categories = (() => {
+    // Active categories from DB with icon info
+    const dbActiveNames = dbCats
+      .filter(c => c.isActive !== false)
+      .map(c => ({ name: c.name, icon: c.icon || "📦" }));
+
+    // Categories only found on products (not yet in DB categories collection)
+    const dbNames = new Set(dbCats.map(c => c.name.toLowerCase()));
+    const productOnlyCats = [...new Set(products.map(p => p.category).filter(Boolean))]
+      .filter(cat => !dbNames.has(cat.toLowerCase()))
+      .map(cat => ({ name: cat, icon: "📦" }));
+
+    return [...dbActiveNames, ...productOnlyCats];
+  })();
+
+  const categoryNames = categories.map(c => c.name);
 
   /* ── Apply discount to entire category (local state only) ── */
   const applyToCategory = (cat, disc) => {
@@ -107,12 +152,13 @@ const AdminDiscounts = () => {
   };
 
   /* ── Category stats ── */
-  const catStats = categories.map((cat) => {
+  const catStats = categoryNames.map((cat) => {
     const prods    = products.filter((p) => p.category === cat);
     const pending  = prods.filter((p) => Number(edits[p._id]) !== Number(p.discount ?? 0));
     const catDisc  = edits[prods[0]?._id] ?? prods[0]?.discount ?? 0;
-    const allSame  = prods.every((p) => Number(edits[p._id]) === Number(edits[prods[0]?._id]));
-    return { cat, count: prods.length, pendingCount: pending.length, catDisc, allSame, prods };
+    const allSame  = prods.length === 0 || prods.every((p) => Number(edits[p._id]) === Number(edits[prods[0]?._id]));
+    const catObj   = categories.find(c => c.name === cat);
+    return { cat, count: prods.length, pendingCount: pending.length, catDisc, allSame, prods, icon: catObj?.icon || "📦" };
   });
 
   /* ── Save all pending changes ── */
@@ -203,7 +249,9 @@ const AdminDiscounts = () => {
             <div className="ad-cat-grid">
               {loading ? (
                 <div className="spinner-border" style={{ color: "#0f3460" }} />
-              ) : categories.map((cat) => {
+              ) : categories.length === 0 ? (
+                <p style={{ color: "#999", fontSize: 13 }}>No categories found — add them in the Categories admin page</p>
+              ) : categories.map(({ name: cat, icon }) => {
                 const stat = catStats.find((s) => s.cat === cat);
                 const isSelected = selectedCat === cat;
                 return (
@@ -214,12 +262,13 @@ const AdminDiscounts = () => {
                     onClick={() => handleCatClick(cat)}
                     title={`Apply ${selectedDisc !== null ? selectedDisc + "%" : "selected discount"} to all products in ${cat}`}
                   >
+                    <span className="ad-cat-card-icon">{icon}</span>
                     <span className="ad-cat-card-name">{cat}</span>
-                    <span className="ad-cat-card-count">{stat?.count} products</span>
+                    <span className="ad-cat-card-count">{stat?.count ?? 0} products</span>
                     <span className={`ad-cat-card-disc ${stat?.pendingCount > 0 ? "pending" : ""}`}>
                       {stat?.allSame
                         ? `${stat?.catDisc}% discount`
-                        : "mixed discounts"}
+                        : stat?.count > 0 ? "mixed discounts" : "no products yet"}
                     </span>
                     {stat?.pendingCount > 0 && (
                       <span className="ad-cat-card-pending">{stat.pendingCount} pending</span>
@@ -247,10 +296,12 @@ const AdminDiscounts = () => {
             ══════════════════════════════════ */}
         <h3 className="ad-section-title">Category Overview</h3>
         <div className="ad-cat-summary-grid">
-          {catStats.map(({ cat, count, catDisc, allSame, pendingCount }) => (
+          {catStats.map(({ cat, count, catDisc, allSame, pendingCount, icon }) => (
             <div key={cat} className={`ad-cat-summary-card ${pendingCount > 0 ? "dirty" : ""}`}>
               <div className="ad-cat-summary-top">
-                <span className="ad-cat-summary-name">{cat}</span>
+                <span className="ad-cat-summary-name">
+                  <span style={{ marginRight: 6 }}>{icon}</span>{cat}
+                </span>
                 <span className="ad-cat-summary-count">{count} products</span>
               </div>
               <div className="ad-cat-summary-disc">

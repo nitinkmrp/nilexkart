@@ -20,26 +20,35 @@ const Payment = () => {
   );
 
   useEffect(() => {
-    // Load Razorpay script
-    const loadScript = () => {
+    // Load Razorpay script only once
+    if (!document.getElementById('razorpay-sdk')) {
       const script = document.createElement("script");
+      script.id  = 'razorpay-sdk';
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => setScriptLoaded(true);
+      script.onload  = () => setScriptLoaded(true);
       script.onerror = () => toast.error("Failed to load Razorpay SDK");
       document.body.appendChild(script);
-    };
-    loadScript();
+    } else {
+      setScriptLoaded(true); // already loaded
+    }
+  }, []); // run once on mount only
 
+  useEffect(() => {
+    if (!currentUser) {
+      toast.info("Please login to proceed with payment.");
+      navigate("/");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
+
+  useEffect(() => {
     if (cartList.length === 0) {
       toast.info("Your cart is empty. Redirecting to shop.");
       navigate("/shop");
     }
-    if (!currentUser) {
-      toast.info("Please login to proceed with payment.");
-      // Ideally redirect to login or show modal, we'll just redirect home for now
-      navigate("/");
-    }
-  }, [cartList, navigate, currentUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only check on mount — not on every cart change
+
 
   const handlePayment = async () => {
     if (!scriptLoaded) {
@@ -140,11 +149,12 @@ const Payment = () => {
                 <div className="order-summary mb-4 p-3 bg-light rounded">
                   <h5 className="mb-3">Order Summary</h5>
                   {cartList.map((item) => (
-                    <div key={item.id} className="d-flex justify-content-between mb-2">
-                      <span>{item.productName} x {item.qty}</span>
+                    <div key={`${item.id || item._id}-${item.selectedSize || 'os'}`} className="d-flex justify-content-between mb-2">
+                      <span>{item.productName} {item.selectedSize ? `(${item.selectedSize})` : ''} × {item.qty}</span>
                       <span>₹{item.price * item.qty}.00</span>
                     </div>
                   ))}
+
                   <hr />
                   <div className="d-flex justify-content-between fw-bold fs-5">
                     <span>Total Amount:</span>

@@ -91,6 +91,7 @@
 .ad-cat-card.dirty { border-color: #f59e0b; }
 .ad-cat-card.selected.dirty { border-color: #fbbf24; }
 
+.ad-cat-card-icon  { font-size: 20px; margin-bottom: 2px; }
 .ad-cat-card-name  { font-size: 14px; font-weight: 700; text-transform: capitalize; }
 .ad-cat-card-count { font-size: 11px; opacity: 0.65; }
 .ad-cat-card-disc  { font-size: 12px; font-weight: 600; color: #22c55e; }

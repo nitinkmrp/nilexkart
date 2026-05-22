@@ -50,9 +50,19 @@ const Cart = () => {
                             </p>
                           )}
                           <h4>
-                            ₹{item.price}.00 * {item.qty}
+                            {/* Sale price × qty */}
+                            ₹{item.price}.00 × {item.qty}
                             <span>₹{productQty}.00</span>
                           </h4>
+                          {/* Show MRP strikethrough + discount if discounted */}
+                          {item.mrp && item.mrp !== item.price && (
+                            <p style={{ fontSize: "13px", color: "#888", margin: "3px 0 0" }}>
+                              MRP: <span style={{ textDecoration: "line-through" }}>₹{item.mrp}</span>
+                              <span style={{ marginLeft: 8, color: "#22c55e", fontWeight: 700 }}>
+                                {item.discount}% OFF · You save ₹{(item.mrp - item.price) * item.qty}
+                              </span>
+                            </p>
+                          )}
                         </Col>
                         <Col xs={12} sm={3} className="cartControl">
                           <button

@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import roleGuard from '../middleware/roleGuard.js';
+
 
 const router = express.Router();
 
@@ -27,7 +29,7 @@ router.get('/', roleGuard(['admin']), async (req, res, next) => {
 // ── GET user by email ────────────────────────────────
 router.get('/:email', async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: req.params.email });
+    const user = await User.findOne({ email: req.params.email }).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: user });
   } catch (err) {
@@ -35,19 +37,23 @@ router.get('/:email', async (req, res, next) => {
   }
 });
 
+
 // ── POST create user ─────────────────────────────────
 router.post('/', async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
     const exists = await User.findOne({ email });
     if (exists) return res.status(409).json({ success: false, message: 'Email already registered' });
-    const user = await User.create({ name, email, password, role });
+    // Always hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await User.create({ name, email, password: hashedPassword, role });
     const { password: _, ...safeUser } = user.toObject();
     res.status(201).json({ success: true, data: safeUser });
   } catch (err) {
     next(err);
   }
 });
+
 
 // ── PUT update user (admin only) ─────────────────────
 router.put('/:email', roleGuard(['admin']), async (req, res, next) => {

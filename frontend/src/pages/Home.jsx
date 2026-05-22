@@ -18,10 +18,11 @@ const Home = () => {
       .catch(err => console.error("Error fetching live products:", err));
   }, []);
 
-  const discoutProducts = liveProducts.filter(item => item.discount > 15);
-  const sliderData = liveProducts.filter(item => item.discount < 15).slice(0, 5); // Max 5 items for slider
-  const newArrivalData = liveProducts.slice(0, 8); // Display first 8 products as new arrivals
-  const bestSales = liveProducts.slice(8, 16); // Display next 8 products as best sales
+  // All products with ANY discount set by admin — dynamically updated from DB
+  const discoutProducts = liveProducts.filter(item => (item.discount || 0) > 0);
+  const sliderData      = liveProducts.slice(0, 5);
+  const newArrivalData  = liveProducts.slice(0, 8);
+  const bestSales       = liveProducts.slice(8, 16);
 
   useWindowScrollToTop();
 
@@ -31,7 +32,7 @@ const Home = () => {
       <Wrapper />
       {discoutProducts.length > 0 && (
         <Section
-          title="Big Discount"
+          title={`Big Discount${discoutProducts.length > 0 ? ` — ${discoutProducts.length} deals` : ""}`}
           bgColor="#ffffff"
           productItems={discoutProducts}
         />

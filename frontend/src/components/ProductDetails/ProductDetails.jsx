@@ -95,25 +95,30 @@ const ProductDetails = ({ selectedProduct }) => {
     setSelectedSize("");
   }, [selectedProduct]);
 
-  const handelAdd = () => {
-    if (!selectedSize) {
+  const handelAdd = (sz) => {
+    const useSize = sz || selectedSize;
+    if (hasSizes && !useSize) {
       toast.error("Please select a size!");
       return;
     }
     const productId = selectedProduct._id || selectedProduct.id;
     dispatch(
       addToCart({
-        product: { ...selectedProduct, id: productId, selectedSize },
+        product: { ...selectedProduct, id: productId, selectedSize: useSize || "ONE SIZE" },
         num: 1,
       })
     );
-    toast.success("Added to cart! 🛍️");
+    toast.success("Added to cart! 🛒️");
   };
 
-  const hasDiscount   = selectedProduct?.discount > 0;
-  const originalPrice = hasDiscount
-    ? Math.round(selectedProduct.price / (1 - selectedProduct.discount / 100))
-    : null;
+  const hasDiscount = selectedProduct?.discount > 0;
+  // DB model: price = current sale price, discount = %
+  // MRP is back-calculated so the strikethrough original is consistent
+  const salePrice = selectedProduct?.price || 0;
+  const mrp = hasDiscount
+    ? Math.round(salePrice / (1 - selectedProduct.discount / 100))
+    : salePrice;
+  const savings = hasDiscount ? mrp - salePrice : 0;
 
   return (
     <section className="pdp-wrapper">
@@ -154,12 +159,12 @@ const ProductDetails = ({ selectedProduct }) => {
         {/* Price */}
         <div className="pdp-price-row">
           <span className="pdp-sale-price">
-            ₹ {selectedProduct?.price?.toLocaleString("en-IN")}.00
+            ₹ {salePrice.toLocaleString("en-IN")}.00
           </span>
           {hasDiscount && (
             <>
               <span className="pdp-original-price">
-                ₹ {originalPrice?.toLocaleString("en-IN")}.00
+                ₹ {mrp.toLocaleString("en-IN")}.00
               </span>
               <span className="pdp-discount-badge">
                 {selectedProduct.discount}% OFF
@@ -169,7 +174,7 @@ const ProductDetails = ({ selectedProduct }) => {
         </div>
         {hasDiscount && (
           <p className="pdp-price-note">
-            Inclusive of all taxes · Free shipping on orders above ₹999
+            You save ₹{savings.toLocaleString("en-IN")} · Inclusive of all taxes · Free shipping above ₹999
           </p>
         )}
 

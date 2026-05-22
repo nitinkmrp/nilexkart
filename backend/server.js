@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dbConnect from './config/db.js';
 import userRoutes from './routes/user.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
@@ -15,9 +17,32 @@ import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
 
+// ── Warn if JWT secret is the unsafe fallback ──────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET_KEY;
+if (!process.env.JWT_SECRET) {
+  console.warn('\n⚠️  WARNING: JWT_SECRET is not set in .env! Using ADMIN_SECRET_KEY as fallback.');
+  console.warn('   Set JWT_SECRET in your Render environment variables for production security.\n');
+}
+
 const app = express();
 
-// ── CORS ────────────────────────────────────────────
+// ── Security Headers (Helmet) ────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow Cloudinary images
+  contentSecurityPolicy: false,                           // disable CSP (React handles it)
+}));
+
+// ── Global Rate Limiter (100 req / 15 min per IP) ───────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 minutes
+  max: 100,                    // 100 requests per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again in 15 minutes.' },
+});
+app.use('/api/', globalLimiter);
+
+// ── CORS ────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:3000',        // React dev server
   'http://localhost:8888',        // Local backend

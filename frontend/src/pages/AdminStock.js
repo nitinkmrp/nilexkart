@@ -327,6 +327,7 @@ const AdminStock = () => {
           <NavLink to="/admin/bills" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🧾 Bills</NavLink>
           <NavLink to="/admin/customers" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
           <NavLink to="/admin/stock" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
+          <NavLink to="/admin/discounts" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🏷️ Discounts</NavLink>
         </div>
 
         {/* Dashboard Header */}
@@ -547,37 +548,93 @@ const AdminStock = () => {
                               <span className="as-price-tag">₹{p.price}</span>
                             </td>
                             <td>
-                              <div className="as-stock-counter">
-                                <button
-                                  className="as-counter-btn"
-                                  onClick={() => handleStockChange(p._id, (p.stock || 0) - 1, "Manual deduction")}
-                                  disabled={isUpdating || (p.stock || 0) <= 0}
-                                >
-                                  −
-                                </button>
-                                <input
-                                  type="number"
-                                  className="as-counter-input"
-                                  value={p.stock || 0}
-                                  min="0"
-                                  onChange={(e) => {
-                                    const val = parseInt(e.target.value);
-                                    setProducts((prev) =>
-                                      prev.map((x) => (x._id === p._id ? { ...x, stock: isNaN(val) ? 0 : val } : x))
-                                    );
-                                  }}
-                                  onBlur={(e) => handleStockChange(p._id, parseInt(e.target.value) || 0, "Counter update")}
-                                  disabled={isUpdating}
-                                />
-                                <button
-                                  className="as-counter-btn"
-                                  onClick={() => handleStockChange(p._id, (p.stock || 0) + 1, "Manual restock")}
-                                  disabled={isUpdating}
-                                >
-                                  +
-                                </button>
-                                {isUpdating && <div className="as-small-spinner" />}
-                              </div>
+                              {/* If product has per-size stock, show breakdown; else show counter */}
+                              {p.sizeStock && Object.keys(p.sizeStock).length > 0 ? (
+                                <div className="as-size-stock-wrap">
+                                  <div className="as-size-stock-grid">
+                                    {Object.entries(p.sizeStock).map(([sz, qty]) => (
+                                      <div key={sz} className="as-size-stock-cell">
+                                        <span className="as-size-tag">{sz}</span>
+                                        <input
+                                          type="number" min="0"
+                                          className="as-size-qty-input"
+                                          value={qty}
+                                          disabled={isUpdating}
+                                          onChange={(e) => {
+                                            const val = Number(e.target.value) || 0;
+                                            setProducts((prev) => prev.map((x) => {
+                                              if (x._id !== p._id) return x;
+                                              const newSS = { ...(x.sizeStock || {}), [sz]: val };
+                                              const total = Object.values(newSS).reduce((s,v) => s + Number(v||0), 0);
+                                              return { ...x, sizeStock: newSS, stock: total };
+                                            }));
+                                          }}
+                                          onBlur={async () => {
+                                            // Save per-size stock via PATCH
+                                            const cur = products.find(x => x._id === p._id);
+                                            if (!cur) return;
+                                            const headers = { "Content-Type": "application/json" };
+                                            const token = localStorage.getItem("jwtToken");
+                                            if (token) headers["Authorization"] = `Bearer ${token}`;
+                                            setUpdatingStockId(p._id);
+                                            try {
+                                              const res = await fetch(`${BASE_URL}/api/products/${p._id}/stock`, {
+                                                method: "PATCH", headers,
+                                                body: JSON.stringify({
+                                                  sizeStock: cur.sizeStock,
+                                                  reason: "Per-size stock update",
+                                                  updatedBy: currentUser?.name || "Admin"
+                                                }),
+                                              });
+                                              const data = await res.json();
+                                              if (data.success) {
+                                                toast.success(`Stock updated`);
+                                                fetchMovements();
+                                              }
+                                            } catch { toast.error("Update failed"); }
+                                            finally { setUpdatingStockId(null); }
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="as-size-total">
+                                    Total: <strong>{Object.values(p.sizeStock).reduce((s,v) => s + Number(v||0), 0)}</strong> units
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="as-stock-counter">
+                                  <button
+                                    className="as-counter-btn"
+                                    onClick={() => handleStockChange(p._id, (p.stock || 0) - 1, "Manual deduction")}
+                                    disabled={isUpdating || (p.stock || 0) <= 0}
+                                  >
+                                    −
+                                  </button>
+                                  <input
+                                    type="number"
+                                    className="as-counter-input"
+                                    value={p.stock || 0}
+                                    min="0"
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value);
+                                      setProducts((prev) =>
+                                        prev.map((x) => (x._id === p._id ? { ...x, stock: isNaN(val) ? 0 : val } : x))
+                                      );
+                                    }}
+                                    onBlur={(e) => handleStockChange(p._id, parseInt(e.target.value) || 0, "Counter update")}
+                                    disabled={isUpdating}
+                                  />
+                                  <button
+                                    className="as-counter-btn"
+                                    onClick={() => handleStockChange(p._id, (p.stock || 0) + 1, "Manual restock")}
+                                    disabled={isUpdating}
+                                  >
+                                    +
+                                  </button>
+                                  {isUpdating && <div className="as-small-spinner" />}
+                                </div>
+                              )}
                             </td>
                             <td>{getStockBadge(p.stock || 0)}</td>
                             <td>

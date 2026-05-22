@@ -3,23 +3,55 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
+import rateLimit from 'express-rate-limit';
 import Otp from '../models/Otp.js';
 import { isAllowedDomain, generateOtp } from '../utils/authHelpers.js';
 
 const router = express.Router();
 
+// ── Rate Limiters ────────────────────────────────────────────
+const otpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,                    // max 5 OTP requests per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many OTP requests. Please wait 1 hour before trying again.' },
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // max 10 login attempts per IP per 15 min
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many login attempts. Please wait 15 minutes.' },
+});
+
+
 // Get the User model (assuming it's already defined)
 const User = mongoose.models.User;
 
-// Existing login route
-router.post('/login', async (req, res, next) => {
+// Login route (rate limited: 10 attempts per 15 min)
+router.post('/login', loginLimiter, async (req, res, next) => {
+
   try {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
     const user = await User.findOne({ email });
-    if (!user || user.password !== password) {
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    // Support both bcrypt hashed passwords (OTP registered) and legacy plaintext
+    let passwordMatch = false;
+    if (user.password.startsWith('$2')) {
+      // bcrypt hash — use compare
+      passwordMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Legacy plaintext comparison (for admin/seeded users)
+      passwordMatch = user.password === password;
+    }
+    if (!passwordMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
     const secret = process.env.JWT_SECRET || process.env.ADMIN_SECRET_KEY || 'default_fallback_secret';
@@ -39,8 +71,10 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-// Email OTP registration - step 1: request OTP
-router.post('/register', async (req, res, next) => {
+
+// Email OTP registration - step 1: request OTP (rate limited: 5/hour)
+router.post('/register', otpLimiter, async (req, res, next) => {
+
   try {
     const { email, password } = req.body;
     if (!email || !password) {

@@ -11,13 +11,14 @@ const productSchema = new mongoose.Schema(
     productName:  { type: String, required: true, trim: true },
     category:     { type: String, required: true, trim: true },
     sizes:        { type: [String], default: [] },
+    sizeStock:    { type: Map, of: Number, default: {} },  // per-size stock e.g. { S:10, M:5 }
     price:        { type: Number, required: true, min: 0 },
     discount:     { type: Number, default: 0, min: 0, max: 100 },
-    stock:        { type: Number, default: 0, min: 0 },
+    stock:        { type: Number, default: 0, min: 0 },   // total (auto-sum of sizeStock when set)
     shortDesc:    { type: String, default: '' },
     description:  { type: String, default: '' },
-    imgUrl:       { type: String, default: '' },   // full Cloudinary HTTPS URL
-    publicId:     { type: String, default: '' },   // Cloudinary public_id for deletion
+    imgUrl:       { type: String, default: '' },
+    publicId:     { type: String, default: '' },
     avgRating:    { type: Number, default: 0 },
   },
   { timestamps: true }
@@ -225,28 +226,38 @@ router.get('/:id', async (req, res, next) => {
 // ── POST /api/products — create product (admin only) ──
 router.post('/', roleGuard(['admin', 'editor']), upload.single('image'), async (req, res, next) => {
   try {
-    const { productName, category, sizes, price, discount, stock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
+    const { productName, category, sizes, price, discount, stock, sizeStock: rawSizeStock, shortDesc, description, avgRating, imgUrl: bodyImgUrl } = req.body;
 
     if (!productName || !category || price === undefined) {
       return res.status(400).json({ success: false, message: 'productName, category, and price are required' });
     }
 
-    // Prefer uploaded file (Cloudinary), fall back to a pasted URL
     let imgUrl  = bodyImgUrl || '';
     let publicId = '';
     if (req.file) {
-      imgUrl   = req.file.path;        // Cloudinary HTTPS URL
-      publicId = req.file.filename;    // Cloudinary public_id
+      imgUrl   = req.file.path;
+      publicId = req.file.filename;
     }
 
     const parsedSizes = typeof sizes === 'string' ? sizes.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(sizes) ? sizes : []);
 
+    // Parse sizeStock JSON string → object
+    let parsedSizeStock = {};
+    if (rawSizeStock) {
+      try { parsedSizeStock = typeof rawSizeStock === 'string' ? JSON.parse(rawSizeStock) : rawSizeStock; } catch(_) {}
+    }
+
+    // Auto-compute total stock from sizeStock if provided
+    const sizeStockTotal = Object.values(parsedSizeStock).reduce((s, v) => s + Number(v || 0), 0);
+    const totalStock = sizeStockTotal > 0 ? sizeStockTotal : Number(stock || 0);
+
     const product = await Product.create({
       productName, category,
       sizes:      parsedSizes,
+      sizeStock:  parsedSizeStock,
       price:      Number(price),
       discount:   Number(discount  || 0),
-      stock:      Number(stock     || 0),
+      stock:      totalStock,
       shortDesc,  description,
       imgUrl,     publicId,
       avgRating:  Number(avgRating || 0),
@@ -270,21 +281,31 @@ router.put('/:id', roleGuard(['admin', 'editor']), upload.single('image'), async
 
     const updates = { ...req.body };
     if (updates.price)     updates.price     = Number(updates.price);
-    if (updates.discount)  updates.discount  = Number(updates.discount);
-    if (updates.stock)     updates.stock     = Number(updates.stock);
+    if (updates.discount !== undefined)  updates.discount  = Number(updates.discount);
+    if (updates.stock !== undefined)     updates.stock     = Number(updates.stock);
     if (updates.avgRating) updates.avgRating = Number(updates.avgRating);
     
     if (typeof updates.sizes === 'string') {
       updates.sizes = updates.sizes.split(',').map(s => s.trim()).filter(Boolean);
     }
 
+    // Handle sizeStock JSON
+    if (updates.sizeStock) {
+      try {
+        const ss = typeof updates.sizeStock === 'string' ? JSON.parse(updates.sizeStock) : updates.sizeStock;
+        updates.sizeStock = ss;
+        // Auto-recalculate total stock
+        const total = Object.values(ss).reduce((s, v) => s + Number(v || 0), 0);
+        if (total > 0) updates.stock = total;
+      } catch(_) { delete updates.sizeStock; }
+    }
+
     if (req.file) {
-      // Delete old Cloudinary image if it was uploaded (has a publicId)
       if (existing.publicId) {
         try { await cloudinary.uploader.destroy(existing.publicId); } catch (_) {}
       }
-      updates.imgUrl   = req.file.path;      // new Cloudinary HTTPS URL
-      updates.publicId = req.file.filename;  // new Cloudinary public_id
+      updates.imgUrl   = req.file.path;
+      updates.publicId = req.file.filename;
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -308,24 +329,37 @@ router.put('/:id', roleGuard(['admin', 'editor']), upload.single('image'), async
 // ── PATCH /api/products/:id/stock — update stock (admin only) ──
 router.patch('/:id/stock', roleGuard(['admin', 'editor']), async (req, res, next) => {
   try {
-    const { stock, reason, updatedBy } = req.body;
-    if (stock === undefined || stock < 0) {
-      return res.status(400).json({ success: false, message: 'Valid stock value required' });
-    }
+    const { stock, sizeStock: rawSizeStock, reason, updatedBy } = req.body;
 
     const existing = await Product.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
 
     const oldStock = existing.stock || 0;
-    const newStock = Number(stock);
-    const diff = newStock - oldStock;
+    let newStock = oldStock;
+    const dbUpdates = {};
+
+    if (rawSizeStock) {
+      // Per-size stock update
+      try {
+        const ss = typeof rawSizeStock === 'string' ? JSON.parse(rawSizeStock) : rawSizeStock;
+        dbUpdates.sizeStock = ss;
+        newStock = Object.values(ss).reduce((s, v) => s + Number(v || 0), 0);
+        dbUpdates.stock = newStock;
+      } catch(_) {}
+    } else if (stock !== undefined && stock >= 0) {
+      newStock = Number(stock);
+      dbUpdates.stock = newStock;
+    } else {
+      return res.status(400).json({ success: false, message: 'Valid stock or sizeStock required' });
+    }
 
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      { $set: { stock: newStock } },
+      { $set: dbUpdates },
       { new: true }
     );
 
+    const diff = newStock - oldStock;
     if (diff !== 0) {
       const type = diff > 0 ? 'in' : 'out';
       const finalReason = reason || (diff > 0 ? 'Manual restock' : 'Manual reduction');
