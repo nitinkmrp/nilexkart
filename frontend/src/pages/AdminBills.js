@@ -314,6 +314,9 @@ const AdminBills = () => {
         <NavLink to="/admin/stock"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>
           📦 Stock
         </NavLink>
+        <NavLink to="/admin/deliveries"  className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>
+          🚚 Deliveries
+        </NavLink>
       </div>
 
       <div className="container-fluid px-4 py-4">

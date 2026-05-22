@@ -95,6 +95,30 @@ const ProductDetails = ({ selectedProduct }) => {
     setSelectedSize("");
   }, [selectedProduct]);
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = selectedProduct?.productName || "Check out this amazing product!";
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text: `I thought you might like this: ${title}`,
+          url
+        });
+      } catch (err) {
+        console.error("Error sharing:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard! 📋");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
+
   const handelAdd = (sz) => {
     const useSize = sz || selectedSize;
     if (hasSizes && !useSize) {
@@ -139,7 +163,21 @@ const ProductDetails = ({ selectedProduct }) => {
           {selectedProduct?.category?.toUpperCase() || ""}
         </p>
 
-        <h1 className="pdp-title">{selectedProduct?.productName}</h1>
+        <div className="d-flex justify-content-between align-items-start mb-2">
+          <h1 className="pdp-title mb-0" style={{ paddingRight: "15px" }}>{selectedProduct?.productName}</h1>
+          <button 
+            onClick={handleShare} 
+            className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2" 
+            style={{ width: "42px", height: "42px", flexShrink: 0, border: "1px solid #eaeaea", color: "#444", transition: "all 0.2s" }}
+            title="Share this product"
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f0f0f0"; e.currentTarget.style.transform = "scale(1.05)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fff"; e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+            </svg>
+          </button>
+        </div>
 
         {/* Rating */}
         <div className="pdp-rating-row">

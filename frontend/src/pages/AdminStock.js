@@ -143,29 +143,90 @@ const AdminStock = () => {
 
   // ── Parse CSV and apply size-aware stock updates ──────────────────────────
   const parseCsvAndUpdate = async (csvText) => {
-    const lines = csvText.trim().split("\n").filter(Boolean);
-    const dataLines = lines[0].toLowerCase().includes("product name") ? lines.slice(1) : lines;
+    const lines = csvText.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return { successCount: 0, failCount: 0 };
+
+    const hasHeaders = lines[0].toLowerCase().includes("product name") || 
+                       lines[0].toLowerCase().includes("product id") || 
+                       lines[0].toLowerCase().includes("stock") ||
+                       lines[0].toLowerCase().includes("qty");
+
+    let idIdx = 0, nameIdx = 0, sizeIdx = 1, qtyIdx = 2; // Defaults if no headers
+
+    if (hasHeaders) {
+      const firstLine = lines[0].toLowerCase();
+      // Robust split for headers
+      const headers = [];
+      let curr = '', inQ = false;
+      for (let i = 0; i < firstLine.length; i++) {
+        const c = firstLine[i];
+        if (c === '"') inQ = !inQ;
+        else if (c === ',' && !inQ) { headers.push(curr.trim().replace(/^"|"$/g, "")); curr = ''; }
+        else curr += c;
+      }
+      headers.push(curr.trim().replace(/^"|"$/g, ""));
+
+      idIdx = headers.findIndex(h => h === "product id" || h === "id");
+      nameIdx = headers.findIndex(h => h === "product name" || h === "name" || h === "product");
+      sizeIdx = headers.findIndex(h => h === "size" || h === "product size");
+      qtyIdx = headers.findIndex(h => h === "size stock" || h === "stock" || h === "total stock" || h === "quantity" || h === "qty");
+
+      if (idIdx === -1) idIdx = nameIdx; // fallback to name
+      if (qtyIdx === -1) qtyIdx = headers.indexOf("total stock") !== -1 ? headers.indexOf("total stock") : 2;
+      if (sizeIdx === -1) sizeIdx = headers.indexOf("size") !== -1 ? headers.indexOf("size") : 1;
+    }
+
+    const dataLines = hasHeaders ? lines.slice(1) : lines;
     const productUpdates = {};
 
     for (const rawLine of dataLines) {
-      const parts = rawLine
-        .match(/("(?:[^"]|"")*"|[^,]+)(?:,|$)/g)
-        ?.map((p) => p.replace(/,+$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim()) ?? [];
-      if (parts.length < 3) continue;
-      const nameOrId = parts[0]?.trim();
-      const size     = parts[1]?.trim();
-      const qty      = parseInt(parts[2]);
-      if (!nameOrId || isNaN(qty) || qty < 0) continue;
+      // Robust CSV parser to handle empty fields correctly (e.g. A,,C)
+      const parts = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < rawLine.length; i++) {
+        const char = rawLine[i];
+        if (char === '"') {
+          if (inQuotes && rawLine[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          parts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current.trim());
+      
+      if (parts.length === 0 || (parts.length === 1 && parts[0] === "")) continue;
+
+      const pId = idIdx !== -1 && parts[idIdx] ? parts[idIdx] : "";
+      const pName = nameIdx !== -1 && parts[nameIdx] ? parts[nameIdx] : "";
+      const sizeVal = sizeIdx !== -1 && parts[sizeIdx] ? parts[sizeIdx] : "-";
+      
+      let qtyVal = qtyIdx !== -1 && parts[qtyIdx] ? parseInt(parts[qtyIdx].replace(/[^\d-]/g, '')) : NaN;
+      if (isNaN(qtyVal) || qtyVal < 0) continue;
+
+      // Find product by ID exactly, or by name fallback (case-insensitive)
       const found = products.find(
-        (p) => p._id === nameOrId || p.productName.toLowerCase() === nameOrId.toLowerCase()
+        (p) => (pId && p._id === pId) || (pName && p.productName.toLowerCase() === pName.toLowerCase())
       );
+
       if (!found) continue;
       const id = found._id;
-      if (!productUpdates[id]) productUpdates[id] = { product: found, sizeStockPatch: {}, flatStock: null };
-      if (!size || size === "-" || size.toLowerCase() === "none") {
-        productUpdates[id].flatStock = qty;
+
+      if (!productUpdates[id]) {
+        productUpdates[id] = { product: found, sizeStockPatch: {}, flatStock: null };
+      }
+
+      if (!sizeVal || sizeVal === "-" || sizeVal.toLowerCase() === "none") {
+        productUpdates[id].flatStock = qtyVal;
       } else {
-        productUpdates[id].sizeStockPatch[size] = qty;
+        productUpdates[id].sizeStockPatch[sizeVal] = qtyVal;
       }
     }
 
@@ -179,7 +240,7 @@ const AdminStock = () => {
         const hasSizes = Object.keys(sizeStockPatch).length > 0;
         const body = hasSizes
           ? { sizeStock: { ...(product.sizeStock || {}), ...sizeStockPatch }, reason: "Bulk CSV Import", updatedBy: currentUser?.name || "Admin" }
-          : { stock: flatStock, reason: "Bulk CSV Import", updatedBy: currentUser?.name || "Admin" };
+          : { stock: flatStock !== null ? flatStock : product.stock, reason: "Bulk CSV Import", updatedBy: currentUser?.name || "Admin" };
         const res  = await fetch(`${BASE_URL}/api/products/${product._id}/stock`, {
           method: "PATCH", headers: authHeaders, body: JSON.stringify(body),
         });
@@ -351,6 +412,7 @@ const AdminStock = () => {
           <NavLink to="/admin/stock" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
           <NavLink to="/admin/discounts" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🏷️ Discounts</NavLink>
           <NavLink to="/admin/settings" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>⚙️ Settings</NavLink>
+          <NavLink to="/admin/deliveries" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🚚 Deliveries</NavLink>
         </div>
 
         {/* Dashboard Header */}

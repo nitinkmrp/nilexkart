@@ -375,6 +375,7 @@ const AdminProducts = () => {
           <NavLink to="/admin/customers"   className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
           <NavLink to="/admin/stock"       className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
           <NavLink to="/admin/discounts"   className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🏷️ Discounts</NavLink>
+          <NavLink to="/admin/deliveries"  className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🚚 Deliveries</NavLink>
         </div>
 
         {/* ── Header ── */}

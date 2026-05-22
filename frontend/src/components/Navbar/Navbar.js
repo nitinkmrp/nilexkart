@@ -84,6 +84,13 @@ const NavBar = () => {
                       </Link>
                     </li>
                   )}
+                  {['admin', 'editor', 'support'].includes(currentUser?.role) && (
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/admin/deliveries" onClick={() => setMenuOpen(false)}>
+                        🚚 Deliveries
+                      </Link>
+                    </li>
+                  )}
                 </>
               )}
             </ul>
@@ -137,6 +144,11 @@ const NavBar = () => {
                         {['admin', 'editor', 'support'].includes(currentUser?.role) && (
                           <Dropdown.Item as={Link} to="/admin/bills">
                             <i className="fa fa-receipt me-2" /> Manage Bills
+                          </Dropdown.Item>
+                        )}
+                        {['admin', 'editor', 'support'].includes(currentUser?.role) && (
+                          <Dropdown.Item as={Link} to="/admin/deliveries">
+                            <i className="fa fa-truck me-2" /> Manage Deliveries
                           </Dropdown.Item>
                         )}
                       </>

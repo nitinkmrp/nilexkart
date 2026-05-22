@@ -83,6 +83,7 @@ const AdminUsers = () => {
           <NavLink to="/admin/bills"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🧾 Bills</NavLink>
           <NavLink to="/admin/customers"   className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
           <NavLink to="/admin/stock"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
+          <NavLink to="/admin/deliveries"  className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🚚 Deliveries</NavLink>
         </div>
 
         {/* Header */}
