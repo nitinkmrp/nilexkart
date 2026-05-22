@@ -13,6 +13,7 @@ import billRoutes      from './routes/bills.routes.js';
 import customerRoutes  from './routes/customers.routes.js';
 import aiRoutes        from './routes/ai.routes.js';
 import authRoutes      from './routes/auth.routes.js';
+import adminRoutes     from './routes/admin.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -32,15 +33,27 @@ app.use(helmet({
   contentSecurityPolicy: false,                           // disable CSP (React handles it)
 }));
 
-// ── Global Rate Limiter (100 req / 15 min per IP) ───────────────
+// ── Dynamic Rate Limiter (admin-controllable) ────────────────────
+// Config is mutable — admin can update max/windowMs at runtime
+export const rateLimitConfig = {
+  max: 500,
+  windowMs: 15 * 60 * 1000,
+};
+
+// Use MemoryStore directly so we can call resetAll() from admin route
+import { MemoryStore } from 'express-rate-limit';
+export const rateLimitStore = new MemoryStore();
+
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 minutes
-  max: 100,                    // 100 requests per window per IP
+  windowMs: rateLimitConfig.windowMs,
+  max: (req) => rateLimitConfig.max,          // dynamic — reads config on every request
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again in 15 minutes.' },
+  store: rateLimitStore,
+  message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api/', globalLimiter);
+
 
 // ── CORS ────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -79,6 +92,7 @@ app.use('/api/bills',      billRoutes);
 app.use('/api/customers',  customerRoutes);
 app.use('/api/ai',         aiRoutes);
 app.use('/api/auth',       authRoutes);
+app.use('/api/admin',      adminRoutes);
 
 // ── Health check ────────────────────────────────────
 app.get('/health', (req, res) => {

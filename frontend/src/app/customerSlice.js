@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-const API = process.env.REACT_APP_API_URL || "http://localhost:8888";
+const API = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
 const ADMIN_KEY = process.env.REACT_APP_ADMIN_KEY || "";
 
 const headers = () => {

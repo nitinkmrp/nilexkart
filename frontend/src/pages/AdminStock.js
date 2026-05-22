@@ -22,6 +22,8 @@ const AdminStock = () => {
   const [updatingStockId, setUpdatingStockId] = useState(null); // Track inline loading spinner
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   // Modern IMS Features State
   const [activeTab, setActiveTab] = useState("inventory"); // 'inventory' | 'advisor' | 'logs'
@@ -139,79 +141,86 @@ const AdminStock = () => {
     }
   };
 
-  // Bulk stock update
+  // ── Parse CSV and apply size-aware stock updates ──────────────────────────
+  const parseCsvAndUpdate = async (csvText) => {
+    const lines = csvText.trim().split("\n").filter(Boolean);
+    const dataLines = lines[0].toLowerCase().includes("product name") ? lines.slice(1) : lines;
+    const productUpdates = {};
+
+    for (const rawLine of dataLines) {
+      const parts = rawLine
+        .match(/("(?:[^"]|"")*"|[^,]+)(?:,|$)/g)
+        ?.map((p) => p.replace(/,+$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim()) ?? [];
+      if (parts.length < 3) continue;
+      const nameOrId = parts[0]?.trim();
+      const size     = parts[1]?.trim();
+      const qty      = parseInt(parts[2]);
+      if (!nameOrId || isNaN(qty) || qty < 0) continue;
+      const found = products.find(
+        (p) => p._id === nameOrId || p.productName.toLowerCase() === nameOrId.toLowerCase()
+      );
+      if (!found) continue;
+      const id = found._id;
+      if (!productUpdates[id]) productUpdates[id] = { product: found, sizeStockPatch: {}, flatStock: null };
+      if (!size || size === "-" || size.toLowerCase() === "none") {
+        productUpdates[id].flatStock = qty;
+      } else {
+        productUpdates[id].sizeStockPatch[size] = qty;
+      }
+    }
+
+    const token = localStorage.getItem("jwtToken");
+    const authHeaders = { "Content-Type": "application/json" };
+    if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+    let successCount = 0; let failCount = 0;
+
+    for (const { product, sizeStockPatch, flatStock } of Object.values(productUpdates)) {
+      try {
+        const hasSizes = Object.keys(sizeStockPatch).length > 0;
+        const body = hasSizes
+          ? { sizeStock: { ...(product.sizeStock || {}), ...sizeStockPatch }, reason: "Bulk CSV Import", updatedBy: currentUser?.name || "Admin" }
+          : { stock: flatStock, reason: "Bulk CSV Import", updatedBy: currentUser?.name || "Admin" };
+        const res  = await fetch(`${BASE_URL}/api/products/${product._id}/stock`, {
+          method: "PATCH", headers: authHeaders, body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.success) successCount++; else failCount++;
+      } catch { failCount++; }
+    }
+    return { successCount, failCount };
+  };
+
+  // ── Bulk import from pasted CSV text ──────────────────────────────────────
   const handleBulkUpdate = async (e) => {
     e.preventDefault();
-    if (!bulkInput.trim()) {
-      toast.error("Please enter CSV data");
-      return;
-    }
-
-    const lines = bulkInput.trim().split("\n");
-    let successCount = 0;
-    let failCount = 0;
-
+    if (!bulkInput.trim()) { toast.error("Please enter CSV data"); return; }
+    setImporting(true);
     toast.info("Processing bulk updates...");
-    
-    for (const line of lines) {
-      const parts = line.split(",");
-      if (parts.length < 2) continue;
-      
-      const productNameOrId = parts[0].trim();
-      const stockVal = parseInt(parts[1].trim());
-
-      if (isNaN(stockVal) || stockVal < 0) {
-        failCount++;
-        continue;
-      }
-
-      // Find product by ID or exact match name
-      const foundProduct = products.find(
-        (p) => p._id === productNameOrId || p.productName.toLowerCase() === productNameOrId.toLowerCase()
-      );
-
-      if (foundProduct) {
-        try {
-          const headers = { "Content-Type": "application/json" };
-          const token = localStorage.getItem("jwtToken");
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-
-          const res = await fetch(`${BASE_URL}/api/products/${foundProduct._id}/stock`, {
-            method: "PATCH",
-            headers,
-            body: JSON.stringify({ 
-              stock: stockVal,
-              reason: "Bulk CSV Import",
-              updatedBy: currentUser?.name || "Admin"
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch {
-          failCount++;
-        }
-      } else {
-        failCount++;
-      }
-    }
-
-    if (successCount > 0) {
-      toast.success(`Successfully updated ${successCount} products!`);
-      fetchProducts();
-      fetchMovements();
-      fetchInsights();
-    }
-    if (failCount > 0) {
-      toast.warn(`Failed or skipped ${failCount} items.`);
-    }
-
-    setShowBulkModal(false);
-    setBulkInput("");
+    try {
+      const { successCount, failCount } = await parseCsvAndUpdate(bulkInput);
+      if (successCount > 0) { toast.success(`Updated ${successCount} product(s)!`); fetchProducts(); fetchMovements(); fetchInsights(); }
+      if (failCount > 0) toast.warn(`Failed or skipped ${failCount} row(s).`);
+      if (successCount === 0 && failCount === 0) toast.error("No matching products found.");
+    } finally { setImporting(false); setShowBulkModal(false); setBulkInput(""); }
   };
+
+  // ── Bulk import from uploaded .csv file ───────────────────────────────────
+  const handleFileImport = async (e) => {
+    e.preventDefault();
+    if (!importFile) { toast.error("Please select a CSV file"); return; }
+    setImporting(true);
+    toast.info("Reading CSV file...");
+    try {
+      const text = await importFile.text();
+      const { successCount, failCount } = await parseCsvAndUpdate(text);
+      if (successCount > 0) { toast.success(`Updated ${successCount} product(s) from file!`); fetchProducts(); fetchMovements(); fetchInsights(); }
+      if (failCount > 0) toast.warn(`Failed or skipped ${failCount} row(s).`);
+      if (successCount === 0 && failCount === 0) toast.error("No matching products found in file.");
+    } catch { toast.error("Failed to read CSV file"); }
+    finally { setImporting(false); setShowBulkModal(false); setImportFile(null); }
+  };
+
+
 
   // Applying AI dynamic pricing advice
   const handleApplyPricingSuggestion = async (productId, discountPercent) => {
@@ -249,29 +258,42 @@ const AdminStock = () => {
     }
   };
 
-  // CSV Export
+  // ── CSV Export (size-aware) ──────────────────────────────────────────────
   const exportToCSV = () => {
-    if (products.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
+    if (products.length === 0) { toast.error("No data to export"); return; }
 
-    const csvHeaders = "Product Name,Category,Price,Current Stock,Status\n";
-    const csvRows = filteredProducts.map((p) => {
-      const status = p.stock === 0 ? "Out of Stock" : p.stock <= lowStockThreshold ? "Low Stock" : "In Stock";
-      return `"${p.productName.replace(/"/g, '""')}","${p.category}",${p.price},${p.stock || 0},"${status}"`;
-    }).join("\n");
+    const rows = ["Product Name,Product ID,Category,Price,Size,Size Stock,Total Stock,Status"];
 
-    const blob = new Blob([csvHeaders + csvRows], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    filteredProducts.forEach((p) => {
+      const totalStock = p.stock || 0;
+      const status = totalStock === 0 ? "Out of Stock" : totalStock <= lowStockThreshold ? "Low Stock" : "In Stock";
+      const safeName = (p.productName || "").replace(/"/g, '""');
+      const safeCat  = (p.category  || "").replace(/"/g, '""');
+
+      const ss = p.sizeStock && typeof p.sizeStock === "object" ? p.sizeStock : {};
+      const sizeEntries = Object.entries(ss).filter(([, v]) => v !== undefined);
+
+      if (sizeEntries.length > 0) {
+        sizeEntries.forEach(([size, qty]) => {
+          rows.push(`"${safeName}",${p._id},"${safeCat}",${p.price},${size},${qty || 0},${totalStock},"${status}"`);
+        });
+      } else {
+        rows.push(`"${safeName}",${p._id},"${safeCat}",${p.price},-,${totalStock},${totalStock},"${status}"`);
+      }
+    });
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `stock_report_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `stock_size_report_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("CSV Report Downloaded!");
+    toast.success("📊 Size-aware stock CSV exported!");
   };
+
+
 
   // Filtering Logic
   const filteredProducts = products.filter((p) => {
@@ -328,6 +350,7 @@ const AdminStock = () => {
           <NavLink to="/admin/customers" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
           <NavLink to="/admin/stock" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
           <NavLink to="/admin/discounts" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🏷️ Discounts</NavLink>
+          <NavLink to="/admin/settings" className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>⚙️ Settings</NavLink>
         </div>
 
         {/* Dashboard Header */}
@@ -845,37 +868,84 @@ const AdminStock = () => {
         )}
       </div>
 
-      {/* Bulk Stock Import Modal */}
+      {/* Size-Aware Bulk Stock Import Modal */}
       {showBulkModal && (
-        <div className="as-modal-backdrop" onClick={() => setShowBulkModal(false)}>
-          <div className="as-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="as-modal-close" onClick={() => setShowBulkModal(false)}>×</button>
-            <h3 className="as-modal-title">📥 Bulk Stock Update</h3>
-            <p className="as-modal-desc">
-              Paste your inventory sheet values below. Enter one item per line using the format: <br />
-              <code>Product ID or Product Name, New Stock Value</code>
-            </p>
-            
-            <form onSubmit={handleBulkUpdate}>
-              <div className="as-modal-form-group">
-                <textarea
-                  className="as-modal-textarea"
-                  rows={8}
-                  placeholder="e.g.&#10;Apple iPhone 15, 20&#10;664ba0fb9a67cb3012a4b512, 100"
-                  value={bulkInput}
-                  onChange={(e) => setBulkInput(e.target.value)}
-                />
-              </div>
+        <div className="as-modal-backdrop" onClick={() => { setShowBulkModal(false); setImportFile(null); setBulkInput(""); }}>
+          <div className="as-modal as-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <button className="as-modal-close" onClick={() => { setShowBulkModal(false); setImportFile(null); setBulkInput(""); }}>×</button>
+            <h3 className="as-modal-title">📥 Size-Aware Stock Import</h3>
 
-              <div className="as-modal-actions">
-                <button type="button" className="as-btn as-btn-secondary" onClick={() => setShowBulkModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="as-btn as-btn-primary">
-                  Process Import
-                </button>
+            {/* Format guide */}
+            <div className="as-import-info-box">
+              <strong>📋 CSV Format (3 columns):</strong>
+              <div className="as-import-code-block">
+                <span style={{color:"#7dd3fc"}}>Product Name or ID</span>,{" "}
+                <span style={{color:"#86efac"}}>Size</span>,{" "}
+                <span style={{color:"#fcd34d"}}>New Stock</span><br />
+                T-Shirt, S, 25<br />
+                T-Shirt, M, 18<br />
+                T-Shirt, L, 10<br />
+                Jeans, -, 50 <span style={{opacity:0.6, fontSize:"0.8em"}}>(use - for products without sizes)</span>
               </div>
-            </form>
+              <small style={{color:"#aaa", display:"block", marginTop:"6px"}}>
+                💡 <strong>Tip:</strong> Click <em>Export CSV</em> to download current stock — edit it and re-import directly.
+              </small>
+            </div>
+
+            {/* ── Mode 1: Upload .csv file ── */}
+            <div className="as-import-section">
+              <h5 className="as-import-section-title">📂 Upload .csv File</h5>
+              <form onSubmit={handleFileImport}>
+                <div className="as-modal-form-group">
+                  <label className="as-file-label">
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="as-file-input-hidden"
+                      onChange={(e) => setImportFile(e.target.files[0] || null)}
+                    />
+                    <span className="as-file-btn">📁 Choose CSV File</span>
+                    {importFile && (
+                      <span className="as-file-name">📄 {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)</span>
+                    )}
+                  </label>
+                </div>
+                <div className="as-modal-actions">
+                  <button type="button" className="as-btn as-btn-secondary" onClick={() => { setShowBulkModal(false); setImportFile(null); }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="as-btn as-btn-primary" disabled={!importFile || importing}>
+                    {importing ? "⏳ Importing…" : "📂 Import File"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="as-import-divider"><span>— OR paste CSV text —</span></div>
+
+            {/* ── Mode 2: Paste CSV text ── */}
+            <div className="as-import-section">
+              <h5 className="as-import-section-title">📋 Paste CSV Text</h5>
+              <form onSubmit={handleBulkUpdate}>
+                <div className="as-modal-form-group">
+                  <textarea
+                    className="as-modal-textarea"
+                    rows={6}
+                    placeholder={"Product Name, Size, Stock\nT-Shirt, S, 25\nT-Shirt, M, 18\nJeans, -, 50"}
+                    value={bulkInput}
+                    onChange={(e) => setBulkInput(e.target.value)}
+                  />
+                </div>
+                <div className="as-modal-actions">
+                  <button type="button" className="as-btn as-btn-secondary" onClick={() => { setShowBulkModal(false); setBulkInput(""); }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="as-btn as-btn-primary" disabled={!bulkInput.trim() || importing}>
+                    {importing ? "⏳ Processing…" : "⚡ Process Import"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

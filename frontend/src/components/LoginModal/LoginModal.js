@@ -39,7 +39,10 @@ const LoginModal = ({ show, onClose }) => {
     setLoading(true);
     try {
       const data = await createUser({ name, email, password, gender });
-      dispatch(loginUser(data.data));
+      // After registration, auto-login to get a JWT token
+      const { loginUserApi: loginApi } = await import("../../services/userApi");
+      const user = await loginApi(email, password); // saves jwtToken to localStorage
+      dispatch(loginUser(user));
       toast.success("Account created! You're logged in.");
       onClose();
     } catch (err) {

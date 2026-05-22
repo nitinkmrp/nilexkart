@@ -1005,3 +1005,119 @@
   padding-top: 2px;
 }
 .as-size-total strong { color: #94a3b8; }
+
+/* ════════════════════════════════════════
+   SIZE-AWARE IMPORT MODAL EXTRAS
+   ════════════════════════════════════════ */
+
+/* Wide modal variant for import */
+.as-modal-wide {
+  max-width: 640px;
+}
+
+/* Format info box */
+.as-import-info-box {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.as-import-info-box strong {
+  color: #93c5fd;
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+/* Code preview block */
+.as-import-code-block {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: #e2e8f0;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* Section (file or paste mode) */
+.as-import-section {
+  margin-bottom: 16px;
+}
+
+.as-import-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* OR divider */
+.as-import-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin: 16px 0;
+}
+
+.as-import-divider::before,
+.as-import-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* File upload area */
+.as-file-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+
+.as-file-input-hidden {
+  display: none;
+}
+
+.as-file-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.as-file-label:hover .as-file-btn {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #3b82f6;
+}
+
+.as-file-name {
+  font-size: 12px;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}

@@ -16,6 +16,7 @@ const Profile = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [waitlist, setWaitlist] = useState([]);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
 
@@ -253,33 +254,179 @@ const Profile = () => {
               <div className="profile-card">
                 <h5 className="mb-4">Order History</h5>
                 <div className="table-responsive">
-                  <table className="table align-middle">
+                  <table className="table align-middle order-history-table">
                     <thead>
                       <tr>
                         <th>Order ID</th>
                         <th>Date</th>
-                        <th>Status</th>
+                        <th>Delivery Status</th>
                         <th>Total</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ordersLoading ? (
                         <tr>
-                          <td colSpan="4" className="text-center py-3">Loading orders...</td>
+                          <td colSpan="5" className="text-center py-4">
+                            <span className="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
+                            Loading your orders...
+                          </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="text-center py-3">No orders found. Start shopping!</td>
+                          <td colSpan="5" className="text-center py-4 text-muted">No orders found. Start shopping!</td>
                         </tr>
                       ) : (
-                        orders.map((order) => (
-                          <tr key={order._id}>
-                            <td>#{order.razorpayOrderId}</td>
-                            <td>{new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td>
-                            <td><span className="badge bg-success">{order.status}</span></td>
-                            <td>₹{order.totalAmount}.00</td>
-                          </tr>
-                        ))
+                        orders.map((order) => {
+                          const isExpanded = selectedOrderId === order._id;
+                          const dlStatus = order.tracking?.deliveryStatus || "Confirmed";
+                          
+                          // Determine status badge color
+                          let statusBadgeClass = "bg-secondary";
+                          if (dlStatus === "Delivered") statusBadgeClass = "bg-success";
+                          else if (dlStatus === "Out for Delivery") statusBadgeClass = "bg-info text-dark";
+                          else if (dlStatus === "In Transit") statusBadgeClass = "bg-primary";
+                          else if (dlStatus === "Shipped" || dlStatus === "Processing") statusBadgeClass = "bg-warning text-dark";
+
+                          return (
+                            <>
+                              <tr 
+                                key={order._id} 
+                                className={`order-row ${isExpanded ? "active-row" : ""}`}
+                                onClick={() => setSelectedOrderId(isExpanded ? null : order._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <td className="fw-bold text-primary">#{order.razorpayOrderId}</td>
+                                <td>{new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td>
+                                <td>
+                                  <span className={`badge ${statusBadgeClass}`}>
+                                    🚚 {dlStatus}
+                                  </span>
+                                </td>
+                                <td className="fw-bold">₹{order.totalAmount}.00</td>
+                                <td>
+                                  <button className="btn btn-sm btn-outline-primary tracking-toggle-btn">
+                                    {isExpanded ? "Close Info ▲" : "Track Order ▼"}
+                                  </button>
+                                </td>
+                              </tr>
+
+                              {/* Interactive Live Shipment Tracking Drawer */}
+                              {isExpanded && (
+                                <tr className="expanded-row-wrapper">
+                                  <td colSpan="5" className="p-0">
+                                    <div className="order-details-drawer p-4">
+                                      <div className="row g-4">
+                                        
+                                        {/* Left Side: Items & Cost Summary */}
+                                        <div className="col-lg-5 col-12 border-end-lg">
+                                          <h6 className="drawer-sub-title">📦 Shipment Items</h6>
+                                          <div className="drawer-item-list mb-3">
+                                            {order.items?.map((item, index) => (
+                                              <div key={index} className="drawer-item-card d-flex gap-3 align-items-center p-2 mb-2 rounded">
+                                                {item.imgUrl || item.image ? (
+                                                  <img
+                                                    src={item.imgUrl || item.image}
+                                                    alt={item.productName || item.name}
+                                                    className="drawer-item-img"
+                                                  />
+                                                ) : (
+                                                  <div className="drawer-item-img-placeholder">🛍️</div>
+                                                )}
+                                                <div className="flex-grow-1">
+                                                  <span className="drawer-item-name">{item.productName || item.name}</span>
+                                                  <div className="drawer-item-meta text-muted">
+                                                    {item.selectedSize && <span className="me-2">Size: <strong>{item.selectedSize}</strong></span>}
+                                                    <span>Qty: <strong>{item.qty}</strong></span>
+                                                  </div>
+                                                </div>
+                                                <span className="fw-semibold text-primary">₹{item.price * item.qty}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                          
+                                          <div className="summary-box p-3 bg-light rounded-3">
+                                            <div className="d-flex justify-content-between mb-1">
+                                              <span className="text-muted">Payment Method:</span>
+                                              <span className="fw-medium text-capitalize">{order.paymentMethod || "Online"}</span>
+                                            </div>
+                                            <div className="d-flex justify-content-between mb-1">
+                                              <span className="text-muted">Transaction ID:</span>
+                                              <span className="fw-medium text-truncate" style={{ maxWidth: 180 }} title={order.razorpayPaymentId}>
+                                                {order.razorpayPaymentId}
+                                              </span>
+                                            </div>
+                                            <hr className="my-2" />
+                                            <div className="d-flex justify-content-between fw-bold text-dark fs-6">
+                                              <span>Total Paid:</span>
+                                              <span>₹{order.totalAmount}.00</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Right Side: Live Stepper Delivery Tracking */}
+                                        <div className="col-lg-7 col-12">
+                                          <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                            <div>
+                                              <h6 className="drawer-sub-title mb-0">🚚 Live Shipment Tracking</h6>
+                                              <small className="text-muted">Partner: <strong>{order.tracking?.carrier || "Delhivery Express"}</strong></small>
+                                            </div>
+                                            <div className="text-end">
+                                              <span className="d-block tracking-id-label">Tracking ID</span>
+                                              <span 
+                                                className="badge bg-dark text-white cursor-pointer tracking-id-badge"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(order.tracking?.trackingId || "");
+                                                  toast.success("Tracking ID copied!");
+                                                }}
+                                                title="Click to copy tracking ID"
+                                              >
+                                                📋 {order.tracking?.trackingId || "Generating..."}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <div className="shipping-address-banner p-3 mb-4 rounded-3 border-start-thick">
+                                            <span className="d-block text-muted-small">Delivery Address</span>
+                                            <p className="mb-0 fw-medium text-dark">{order.tracking?.shippingAddress || "123 Nilex Corporate Boulevard, Suite 50"}</p>
+                                          </div>
+
+                                          {/* Stepper Stepping Engine */}
+                                          <div className="tracking-timeline-stepper">
+                                            {order.tracking?.timeline?.map((step, sIdx) => (
+                                              <div 
+                                                key={sIdx} 
+                                                className={`stepper-node ${step.isCompleted ? "completed" : ""} ${step.isCurrent ? "current" : ""}`}
+                                              >
+                                                <div className="stepper-left-bar">
+                                                  <div className="stepper-dot">
+                                                    {step.isCompleted ? "✓" : sIdx + 1}
+                                                  </div>
+                                                  {sIdx < order.tracking.timeline.length - 1 && (
+                                                    <div className="stepper-connector" />
+                                                  )}
+                                                </div>
+                                                <div className="stepper-right-content pb-4 ms-3">
+                                                  <div className="d-flex justify-content-between align-items-center">
+                                                    <span className="stepper-label fw-bold text-dark">{step.label}</span>
+                                                    {step.time && <span className="stepper-time text-primary small fw-semibold">{step.time}</span>}
+                                                  </div>
+                                                  <p className="stepper-desc text-muted mb-0 small">{step.desc}</p>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+
+                                        </div>
+
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
