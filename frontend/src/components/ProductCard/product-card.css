@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════
+   Product Card — Overlays-style
+   ═══════════════════════════════════════ */
+
 .product {
     background: #fff;
     padding: 0;
@@ -9,108 +13,187 @@
     overflow: hidden;
 }
 
+/* ── Image wrapper ── */
 .product-img-wrapper {
     overflow: hidden;
     position: relative;
-    background-color: #f8f9fa;
+    background-color: #f5f5f3;
+    cursor: pointer;
 }
 
 .product img {
     width: 100%;
-    height: 300px !important;
+    height: 320px;
     object-fit: cover;
-    cursor: pointer;
-    transition: transform 0.4s ease;
+    display: block;
+    transition: transform 0.5s ease;
 }
 
 .product:hover img {
-    transform: scale(1.05);
+    transform: scale(1.06);
 }
 
+/* ── Discount badge ── */
 .discount {
     position: absolute;
     top: 10px;
     left: 10px;
     background: #000;
     padding: 4px 12px;
-    font-size: 11px;
-    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
     color: #fff;
-    z-index: 2;
-    letter-spacing: 1px;
+    z-index: 3;
+    letter-spacing: 1.5px;
+}
+
+/* ══════════════════════════════════════
+   SIZE OVERLAY — slides up on hover
+   ══════════════════════════════════════ */
+.pc-size-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.97);
+    padding: 12px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 4;
+    border-top: 1px solid #eee;
+}
+
+.product-img-wrapper:hover .pc-size-overlay {
+    transform: translateY(0);
+}
+
+.pc-size-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #555;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.pc-size-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.pc-size-btn {
+    min-width: 40px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1.5px solid #d4d4d4;
+    background: #fff;
+    color: #333;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Inter', 'Oswald', sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+    transition: all 0.18s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pc-size-btn:hover {
+    background: #111;
+    border-color: #111;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.pc-size-btn.pc-size-added {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #fff;
+    transform: scale(1.08);
+}
+
+/* ── Card footer ── */
+.product-details {
+    padding: 10px 2px 4px;
 }
 
 .product h3 {
-    margin: 5px 0 5px;
+    margin: 4px 0 8px;
     font-weight: 600;
-    font-size: 15px;
+    font-size: 13px;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-}
-
-.product-sizes {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-    margin-bottom: 5px;
-}
-
-.size-chip {
-    font-size: 10px;
-    font-family: 'Oswald', sans-serif;
-    color: #555;
-    border: 1px solid #ddd;
-    padding: 2px 6px;
-    background: #fff;
-    cursor: default;
-    transition: all 0.2s ease;
-}
-
-.size-chip:hover {
-    border-color: #000;
-    color: #000;
+    color: #111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .product .rate {
-    display: none; /* Hide standard ratings for a cleaner look */
+    display: none;
 }
 
 .product .price {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: #000;
-    margin-top: 5px;
+    margin-top: 2px;
+}
+
+.price-info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
 }
 
 .price h4 {
     margin: 0;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
+    color: #111;
 }
 
-.price button.add {
-    background: #000;
+.original-price-card {
+    font-size: 12px;
+    color: #aaa;
+    text-decoration: line-through;
+    font-weight: 400;
+}
+
+/* ── Arrow / View button — replaces the old + ── */
+.view-btn {
+    background: #111;
     color: #fff;
-    font-size: 18px;
-    transition: 0.3s;
     border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 14px;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    flex-shrink: 0;
 }
 
-.price button.add:hover {
-    background-color: #0055ff;
+.view-btn:hover {
+    background: #333;
+    transform: translateX(2px);
 }
 
-/* ── Waitlist Button ── */
+/* ── Waitlist button ── */
 .product-waitlist-btn {
     position: absolute;
     top: 10px;
@@ -128,8 +211,8 @@
     opacity: 0;
     transform: scale(0.85);
     transition: all 0.3s ease;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 5;
 }
 
 .product:hover .product-waitlist-btn {

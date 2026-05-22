@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, NavLink } from "react-router-dom";
 import {
   fetchAllUsers, registerUser, updateUserThunk,
   deleteUserThunk, clearMessages,
 } from "../app/userSlice";
 import { toast } from "react-toastify";
 import "./AdminUsers.css";
+import "./AdminCategories.css"; // Reuse nav tabs styling
 
 const EMPTY_FORM = { name: "", email: "", password: "", role: "user" };
 
@@ -73,6 +74,16 @@ const AdminUsers = () => {
   return (
     <section className="admin-users-page">
       <div className="container">
+
+        {/* ── Tab Navigation ── */}
+        <div className="admin-nav-tabs mb-4">
+          <NavLink to="/admin/users"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>👥 Users</NavLink>
+          <NavLink to="/admin/products"    className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🛍️ Products</NavLink>
+          <NavLink to="/admin/categories"  className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🗂️ Categories</NavLink>
+          <NavLink to="/admin/bills"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>🧾 Bills</NavLink>
+          <NavLink to="/admin/customers"   className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
+          <NavLink to="/admin/stock"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
+        </div>
 
         {/* Header */}
         <div className="admin-header">

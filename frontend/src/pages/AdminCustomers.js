@@ -136,6 +136,9 @@ const AdminCustomers = () => {
           👤 Customers
           <span className="tab-badge">{customers.length}</span>
         </NavLink>
+        <NavLink to="/admin/stock"       className={({ isActive }) => `admin-nav-tab${isActive ? " active" : ""}`}>
+          📦 Stock
+        </NavLink>
       </div>
 
       <div className="container-fluid px-4 py-4">

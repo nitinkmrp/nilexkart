@@ -569,3 +569,79 @@
   transform: scale(1.04);
 }
 .ai-mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ════════════════════════════════════════
+   SIZE TOGGLE BUTTONS (admin form)
+   ════════════════════════════════════════ */
+.ap-size-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.ap-size-toggle {
+  min-width: 48px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1.5px solid #dde4ef;
+  background: #f8fafc;
+  color: #555;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.ap-size-toggle:hover {
+  border-color: #0f3460;
+  color: #0f3460;
+  background: #eef3fa;
+}
+
+.ap-size-toggle.active {
+  background: #0f3460;
+  border-color: #0f3460;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(15,52,96,0.25);
+}
+
+/* ════════════════════════════════════════
+   DISCOUNT PRESET CHIPS (admin form)
+   ════════════════════════════════════════ */
+.ap-discount-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ap-discount-chip {
+  padding: 5px 12px;
+  border: 1.5px solid #dde4ef;
+  background: #f8fafc;
+  color: #555;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.ap-discount-chip:hover {
+  border-color: #f59e0b;
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.ap-discount-chip.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: #d97706;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.35);
+}

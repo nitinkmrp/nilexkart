@@ -35,7 +35,7 @@ const Cart = () => {
             {cartList.map((item) => {
               const productQty = item.price * item.qty;
               return (
-                <div className="cart-list" key={item.id}>
+                 <div className="cart-list" key={`${item.id}-${item.selectedSize || ''}`}>
                   <Row>
                     <Col className="image-holder" sm={4} md={3}>
                       <img src={item.imgUrl} alt="" />
@@ -44,6 +44,11 @@ const Cart = () => {
                       <Row className="cart-content justify-content-center">
                         <Col xs={12} sm={9} className="cart-details">
                           <h3>{item.productName}</h3>
+                          {item.selectedSize && (
+                            <p className="cart-size" style={{ fontSize: "14px", color: "#666", margin: "5px 0 10px 0" }}>
+                              Size: <strong style={{ color: "#000", border: "1px solid #ccc", padding: "2px 6px", borderRadius: "4px", backgroundColor: "#f9f9f9" }}>{item.selectedSize}</strong>
+                            </p>
+                          )}
                           <h4>
                             ₹{item.price}.00 * {item.qty}
                             <span>₹{productQty}.00</span>

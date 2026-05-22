@@ -347,6 +347,8 @@ const AdminProducts = () => {
           <NavLink to="/admin/categories"  className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🗂️ Categories</NavLink>
           <NavLink to="/admin/bills"       className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🧾 Bills</NavLink>
           <NavLink to="/admin/customers"   className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>👤 Customers</NavLink>
+          <NavLink to="/admin/stock"       className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>📦 Stock</NavLink>
+          <NavLink to="/admin/discounts"   className={({ isActive }) => `ap-nav-tab${isActive ? " active" : ""}`}>🏷️ Discounts</NavLink>
         </div>
 
         {/* ── Header ── */}
@@ -572,18 +574,58 @@ const AdminProducts = () => {
                   <input className="ap-input" type="number" min="0" value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0" />
                 </div>
-                <div className="ap-form-group">
-                  <label>Sizes (e.g. S, M, L)</label>
-                  <input className="ap-input" value={form.sizes}
-                    onChange={(e) => setForm({ ...form, sizes: e.target.value })} placeholder="S, M, L, XL" />
+              </div>
+
+              {/* ── Size toggle buttons ── */}
+              <div className="ap-form-group">
+                <label>Sizes <span className="ap-hint">(click to toggle)</span></label>
+                <div className="ap-size-toggles">
+                  {["XS","S","M","L","XL","XXL","XXXL"].map((sz) => {
+                    const active = (form.sizes || "").split(",").map(s => s.trim()).includes(sz);
+                    return (
+                      <button
+                        key={sz} type="button"
+                        className={`ap-size-toggle ${active ? "active" : ""}`}
+                        onClick={() => {
+                          const cur = (form.sizes || "").split(",").map(s => s.trim()).filter(Boolean);
+                          const next = active ? cur.filter(s => s !== sz) : [...cur, sz];
+                          setForm({ ...form, sizes: next.join(", ") });
+                        }}
+                      >{sz}</button>
+                    );
+                  })}
                 </div>
+                <input
+                  className="ap-input" style={{ marginTop: 8 }}
+                  value={form.sizes}
+                  onChange={(e) => setForm({ ...form, sizes: e.target.value })}
+                  placeholder="Custom: 28, 30, 32 — or leave blank if above covers it"
+                />
               </div>
 
               <div className="ap-form-row">
                 <div className="ap-form-group">
                   <label>Discount (%)</label>
-                  <input className="ap-input" type="number" min="0" max="100" value={form.discount}
-                    onChange={(e) => setForm({ ...form, discount: e.target.value })} placeholder="0" />
+                  {/* Quick preset chips */}
+                  <div className="ap-discount-presets">
+                    {[0,5,10,15,20,25,30,40,50,70].map((d) => (
+                      <button
+                        key={d} type="button"
+                        className={`ap-discount-chip ${Number(form.discount) === d ? "active" : ""}`}
+                        onClick={() => setForm({ ...form, discount: String(d) })}
+                      >
+                        {d === 0 ? "No disc." : `${d}%`}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom input for non-preset values */}
+                  <input
+                    className="ap-input" type="number" min="0" max="100"
+                    value={form.discount}
+                    onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                    placeholder="Custom %"
+                    style={{ marginTop: 8 }}
+                  />
                 </div>
                 <div className="ap-form-group">
                   <label>Stock Units</label>

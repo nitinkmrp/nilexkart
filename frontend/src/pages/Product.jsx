@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
-import { Col, Container, Row } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import { useParams } from "react-router-dom";
-import Banner from "../components/Banner/Banner";
 import ProductDetails from "../components/ProductDetails/ProductDetails";
 import ProductReviews from "../components/ProductReviews/ProductReviews";
 import ShopList from "../components/ShopList";
@@ -17,13 +16,11 @@ const Product = () => {
 
   useEffect(() => {
     setLoading(true);
-    // Fetch current product
     fetch(`${BASE_URL}/api/products/${id}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
           setProduct(data.data);
-          // Fetch related products (same category)
           return fetch(`${BASE_URL}/api/products?category=${data.data.category}`);
         }
       })
@@ -39,17 +36,45 @@ const Product = () => {
 
   useWindowScrollToTop();
 
-  if (loading) return <div className="text-center py-5"><div className="spinner-border" /></div>;
-  if (!product) return <div className="text-center py-5"><h2>Product Not Found !!</h2></div>;
+  if (loading)
+    return (
+      <div className="text-center py-5" style={{ paddingTop: "120px" }}>
+        <div className="spinner-border" style={{ color: "#111" }} />
+      </div>
+    );
+
+  if (!product)
+    return (
+      <div className="text-center py-5" style={{ paddingTop: "120px" }}>
+        <h2>Product Not Found!</h2>
+      </div>
+    );
 
   return (
     <Fragment>
-      <Banner title={product.productName} />
+      {/* Full-bleed product detail — no container wrapper */}
       <ProductDetails selectedProduct={product} />
-      <ProductReviews selectedProduct={product} />
-      <section className="related-products">
+
+      {/* Reviews — contained */}
+      <div style={{ background: "#fff", paddingTop: "20px" }}>
+        <ProductReviews selectedProduct={product} />
+      </div>
+
+      {/* Related products */}
+      <section className="related-products" style={{ padding: "40px 0 60px", background: "#fafafa" }}>
         <Container>
-          <h3>You might also like</h3>
+          <h3
+            style={{
+              fontSize: "13px",
+              fontWeight: 700,
+              letterSpacing: "2px",
+              textTransform: "uppercase",
+              marginBottom: "28px",
+              color: "#111",
+            }}
+          >
+            You Might Also Like
+          </h3>
           <ShopList productItems={relatedProducts} />
         </Container>
       </section>

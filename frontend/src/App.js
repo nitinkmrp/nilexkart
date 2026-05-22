@@ -24,6 +24,8 @@ const AdminCategories  = lazy(() => import("./pages/AdminCategories"));
 const Register = lazy(() => import("./pages/Register"));
 const AdminBills       = lazy(() => import("./pages/AdminBills"));
 const AdminCustomers   = lazy(() => import("./pages/AdminCustomers"));
+const AdminStock       = lazy(() => import("./pages/AdminStock"));
+const AdminDiscounts   = lazy(() => import("./pages/AdminDiscounts"));
 
 // Policy Pages
 const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
@@ -62,6 +64,8 @@ function App() {
           <Route path="/admin/categories"   element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminCategories /></AdminGuard>} />
           <Route path="/admin/bills"        element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminBills /></AdminGuard>} />
           <Route path="/admin/customers"    element={<AdminGuard allowedRoles={['admin', 'editor', 'support']}><AdminCustomers /></AdminGuard>} />
+          <Route path="/admin/stock"        element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminStock /></AdminGuard>} />
+          <Route path="/admin/discounts"     element={<AdminGuard allowedRoles={['admin', 'editor']}><AdminDiscounts /></AdminGuard>} />
           <Route path="/register" element={<Register/>} />
 
           {/* Policy Routes */}

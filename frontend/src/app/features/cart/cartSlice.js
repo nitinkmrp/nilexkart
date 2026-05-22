@@ -17,12 +17,12 @@ export const cartSlice = createSlice({
       const productToAdd = action.payload.product;
       const quantity = action.payload.num;
       const productExit = state.cartList.find(
-        (item) => item.id === productToAdd.id
+        (item) => item.id === productToAdd.id && item.selectedSize === productToAdd.selectedSize
       );
       if (productExit) {
         state.cartList = state.cartList.map((item) =>
-          item.id === action.payload.product.id
-            ? { ...productExit, qty: productExit.qty + action.payload.num }
+          item.id === productToAdd.id && item.selectedSize === productToAdd.selectedSize
+            ? { ...productExit, qty: productExit.qty + quantity }
             : item
         );
       } else {
@@ -32,15 +32,16 @@ export const cartSlice = createSlice({
     decreaseQty: (state, action) => {
       const productTodecreaseQnty = action.payload;
       const productExit = state.cartList.find(
-        (item) => item.id === productTodecreaseQnty.id
+        (item) => item.id === productTodecreaseQnty.id && item.selectedSize === productTodecreaseQnty.selectedSize
       );
+      if (!productExit) return;
       if (productExit.qty === 1) {
         state.cartList = state.cartList.filter(
-          (item) => item.id !== productExit.id
+          (item) => !(item.id === productExit.id && item.selectedSize === productExit.selectedSize)
         );
       } else {
         state.cartList = state.cartList.map((item) =>
-          item.id === productExit.id
+          item.id === productExit.id && item.selectedSize === productExit.selectedSize
             ? { ...productExit, qty: productExit.qty - 1 }
             : item
         );
@@ -49,7 +50,7 @@ export const cartSlice = createSlice({
     deleteProduct: (state, action) => {
       const productToDelete = action.payload;
       state.cartList = state.cartList.filter(
-        (item) => item.id !== productToDelete.id
+        (item) => !(item.id === productToDelete.id && item.selectedSize === productToDelete.selectedSize)
       );
     },
   },
