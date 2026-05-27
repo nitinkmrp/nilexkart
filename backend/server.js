@@ -27,6 +27,10 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 
+// ── Trust Render/Vercel proxy so req.ip = real client IP ─────────────────
+// Without this, ALL users share the load-balancer IP and get blocked together
+app.set('trust proxy', 1);
+
 // ── Security Headers (Helmet) ────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow Cloudinary images
@@ -44,18 +48,31 @@ export const rateLimitConfig = {
 import { MemoryStore } from 'express-rate-limit';
 export const rateLimitStore = new MemoryStore();
 
+// ── Blocked IP log (in-memory, max 200 entries) ──────────────────────────
+export const blockedIPLog = [];
+
+const getRealIP = (req) => {
+  // X-Forwarded-For may contain a chain: "clientIP, proxy1, proxy2"
+  // First entry is always the real client IP
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+
 const globalLimiter = rateLimit({
   windowMs: rateLimitConfig.windowMs,
-  max: (req) => rateLimitConfig.max,          // dynamic — reads config on every request
+  max: (req) => rateLimitConfig.max,
   standardHeaders: true,
   legacyHeaders: false,
   store: rateLimitStore,
+  keyGenerator: (req) => getRealIP(req), // ← track each user by their real IP
   message: { success: false, message: 'Too many requests, please try again later.' },
   handler: (req, res, next, options) => {
-    // 🔴 Log the blocked IP so you can see who is abusing
-    console.warn(
-      `🚫 RATE LIMIT BLOCKED | IP: ${req.ip} | Route: ${req.originalUrl} | Time: ${new Date().toISOString()}`
-    );
+    const realIP = getRealIP(req);
+    const entry  = { ip: realIP, route: req.originalUrl, time: new Date().toISOString() };
+    blockedIPLog.unshift(entry);
+    if (blockedIPLog.length > 200) blockedIPLog.pop();
+    console.warn(`🚫 RATE LIMIT BLOCKED | IP: ${realIP} | Route: ${req.originalUrl} | Time: ${entry.time}`);
     res.status(options.statusCode).json(options.message);
   },
 });

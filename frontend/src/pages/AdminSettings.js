@@ -16,6 +16,9 @@ const AdminSettings = () => {
   const [rlLoading, setRlLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [saving, setSaving]       = useState(false);
+  const [ipList, setIpList]       = useState([]);
+  const [ipLoading, setIpLoading] = useState(false);
+  const [unblocking, setUnblocking] = useState(null); // ip being unblocked
 
   // Editable fields
   const [editMax, setEditMax]         = useState(500);
@@ -49,7 +52,17 @@ const AdminSettings = () => {
     finally { setRlLoading(false); }
   }, [authHeaders]);
 
-  useEffect(() => { fetchRateLimit(); }, [fetchRateLimit]);
+  const fetchIPs = useCallback(async () => {
+    setIpLoading(true);
+    try {
+      const res  = await fetch(`${BASE_URL}/api/admin/rate-limit/ips`, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) setIpList(data.ips || []);
+    } catch {}
+    finally { setIpLoading(false); }
+  }, [authHeaders]);
+
+  useEffect(() => { fetchRateLimit(); fetchIPs(); }, [fetchRateLimit, fetchIPs]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -83,11 +96,30 @@ const AdminSettings = () => {
       if (data.success) {
         toast.success("🔄 All IP counters cleared!");
         fetchRateLimit();
+        fetchIPs();
       } else {
         toast.error(data.message || "Reset failed");
       }
     } catch { toast.error("Failed to reset counters"); }
     finally { setResetting(false); }
+  };
+
+  const handleUnblock = async (ip) => {
+    setUnblocking(ip);
+    try {
+      const res  = await fetch(`${BASE_URL}/api/admin/rate-limit/unblock/${encodeURIComponent(ip)}`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`✅ Unblocked ${ip}`);
+        fetchIPs();
+      } else {
+        toast.error(data.message || "Unblock failed");
+      }
+    } catch { toast.error("Failed to unblock IP"); }
+    finally { setUnblocking(null); }
   };
 
   if (!currentUser) return null;
@@ -294,6 +326,85 @@ const AdminSettings = () => {
               <span>Changes are <strong>in-memory only</strong> — restart reverts to 500 req/15 min.</span>
             </div>
           </div>
+        </div>
+
+        {/* ── Live IP Monitor Table ── */}
+        <div className="rl-panel" style={{ marginTop: '1.5rem' }}>
+          <div className="rl-panel-header">
+            <div className="rl-panel-title-group">
+              <span className="rl-icon">🌐</span>
+              <div>
+                <h4 className="rl-panel-title">Live IP Monitor</h4>
+                <p className="rl-panel-subtitle">All IPs tracked this window — blocked ones shown first</p>
+              </div>
+            </div>
+            <button className="asettings-refresh-btn" onClick={fetchIPs} disabled={ipLoading}>
+              {ipLoading ? "⏳" : "🔄 Refresh IPs"}
+            </button>
+          </div>
+
+          {ipList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+              {ipLoading ? "Loading IP data…" : "No active IPs tracked yet in this window."}
+            </div>
+          ) : (
+            <div className="rl-ip-table-wrap">
+              <table className="rl-ip-table">
+                <thead>
+                  <tr>
+                    <th>IP Address</th>
+                    <th>Requests</th>
+                    <th>Usage</th>
+                    <th>Status</th>
+                    <th>Last Route</th>
+                    <th>Blocked At</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ipList.map((entry) => (
+                    <tr key={entry.ip} className={entry.blocked ? 'rl-row-blocked' : ''}>
+                      <td><code className="rl-ip-code">{entry.ip}</code></td>
+                      <td><strong>{entry.requests}</strong> / {entry.limit}</td>
+                      <td>
+                        <div className="rl-mini-bar-track">
+                          <div
+                            className={`rl-mini-bar-fill ${
+                              entry.percent >= 100 ? 'fill-danger' :
+                              entry.percent >= 60  ? 'fill-warn'   : 'fill-ok'
+                            }`}
+                            style={{ width: `${entry.percent}%` }}
+                          />
+                        </div>
+                        <span className="rl-mini-pct">{entry.percent}%</span>
+                      </td>
+                      <td>
+                        {entry.blocked
+                          ? <span className="rl-badge-blocked">🚫 Blocked</span>
+                          : entry.percent >= 60
+                            ? <span className="rl-badge-warn">⚠️ Warning</span>
+                            : <span className="rl-badge-ok">✅ Normal</span>
+                        }
+                      </td>
+                      <td><span className="rl-route">{entry.lastRoute || '—'}</span></td>
+                      <td><span className="rl-time">{entry.lastBlocked ? new Date(entry.lastBlocked).toLocaleTimeString() : '—'}</span></td>
+                      <td>
+                        {entry.blocked && (
+                          <button
+                            className="rl-unblock-btn"
+                            onClick={() => handleUnblock(entry.ip)}
+                            disabled={unblocking === entry.ip}
+                          >
+                            {unblocking === entry.ip ? '⏳' : '🔓 Unblock'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
