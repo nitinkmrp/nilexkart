@@ -27,6 +27,7 @@ router.get('/rate-limit', async (req, res) => {
         max: rateLimitConfig.max,
         windowMs: rateLimitConfig.windowMs,
         windowMinutes: Math.round(rateLimitConfig.windowMs / 60000),
+        whitelist: rateLimitConfig.whitelist || []
       },
       stats: { activeIPs, totalHits },
     });
@@ -46,26 +47,38 @@ router.get('/rate-limit/ips', async (req, res) => {
     const max = rateLimitConfig.max;
 
     const ipList = Object.entries(hits).map(([ip, val]) => {
-      const count   = val.totalHits || (typeof val === 'number' ? val : 0);
-      const blocked = count >= max;
-      // Find last blocked log entry for this IP
-      const lastBlock = blockedIPLog
-        .filter(e => e.ip === ip)
-        .sort((a, b) => new Date(b.time) - new Date(a.time))[0];
+      const isWhitelisted = (rateLimitConfig.whitelist || []).includes(ip);
 
       return {
         ip,
         requests: count,
         limit: max,
-        percent: Math.min(100, Math.round((count / max) * 100)),
-        blocked,
+        percent: isWhitelisted ? 0 : Math.min(100, Math.round((count / max) * 100)),
+        blocked: isWhitelisted ? false : blocked,
+        whitelisted: isWhitelisted,
         lastRoute:   lastBlock?.route || null,
         lastBlocked: lastBlock?.time  || null,
       };
     });
 
-    // Sort: blocked first, then by request count desc
-    ipList.sort((a, b) => (b.blocked - a.blocked) || (b.requests - a.requests));
+    // Whitelisted loop to display even if they have 0 requests (keeps them visible in the dashboard UI!)
+    (rateLimitConfig.whitelist || []).forEach(wIp => {
+      if (!ipList.some(e => e.ip === wIp)) {
+        ipList.push({
+          ip: wIp,
+          requests: 0,
+          limit: max,
+          percent: 0,
+          blocked: false,
+          whitelisted: true,
+          lastRoute: null,
+          lastBlocked: null
+        });
+      }
+    });
+
+    // Sort: whitelisted first, then blocked first, then by request count desc
+    ipList.sort((a, b) => (b.whitelisted - a.whitelisted) || (b.blocked - a.blocked) || (b.requests - a.requests));
 
     res.json({ success: true, ips: ipList, total: ipList.length });
   } catch (err) {
@@ -136,6 +149,57 @@ router.post('/rate-limit/reset', async (req, res) => {
     }
     console.log('[Admin] Rate limit counters reset for all IPs');
     res.json({ success: true, message: 'Rate limit counters reset for all IPs' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/admin/rate-limit/whitelist ── add IP to whitelist ───────────
+router.post('/rate-limit/whitelist', async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip?.trim()) {
+      return res.status(400).json({ success: false, message: 'ip is required' });
+    }
+
+    if (!rateLimitConfig.whitelist) rateLimitConfig.whitelist = [];
+
+    const cleanIp = ip.trim();
+    if (!rateLimitConfig.whitelist.includes(cleanIp)) {
+      rateLimitConfig.whitelist.push(cleanIp);
+      // If it was blocked, make sure to clear its count so it's instantly unblocked!
+      if (typeof rateLimitStore.resetKey === 'function') {
+        await rateLimitStore.resetKey(cleanIp);
+      } else if (rateLimitStore.hits) {
+        rateLimitStore.hits.delete(cleanIp);
+      }
+    }
+
+    console.log(`[Admin] Added IP to whitelist: ${cleanIp}`);
+    res.json({
+      success: true,
+      message: `IP ${cleanIp} added to whitelist`,
+      whitelist: rateLimitConfig.whitelist
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── DELETE /api/admin/rate-limit/whitelist/:ip ── remove IP from whitelist ──
+router.delete('/rate-limit/whitelist/:ip', async (req, res) => {
+  try {
+    const ip = decodeURIComponent(req.params.ip);
+    if (!rateLimitConfig.whitelist) rateLimitConfig.whitelist = [];
+
+    rateLimitConfig.whitelist = rateLimitConfig.whitelist.filter(item => item !== ip);
+
+    console.log(`[Admin] Removed IP from whitelist: ${ip}`);
+    res.json({
+      success: true,
+      message: `IP ${ip} removed from whitelist`,
+      whitelist: rateLimitConfig.whitelist
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -42,6 +42,7 @@ app.use(helmet({
 export const rateLimitConfig = {
   max: 500,
   windowMs: 15 * 60 * 1000,
+  whitelist: ['103.208.68.211', '127.0.0.1', '::1', '::ffff:127.0.0.1']
 };
 
 // Use MemoryStore directly so we can call resetAll() from admin route
@@ -66,6 +67,10 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   store: rateLimitStore,
   keyGenerator: (req) => getRealIP(req), // ← track each user by their real IP
+  skip: (req) => {
+    const realIP = getRealIP(req);
+    return rateLimitConfig.whitelist.includes(realIP);
+  },
   message: { success: false, message: 'Too many requests, please try again later.' },
   handler: (req, res, next, options) => {
     const realIP = getRealIP(req);

@@ -23,6 +23,8 @@ const AdminSettings = () => {
   // Editable fields
   const [editMax, setEditMax]         = useState(500);
   const [editWindow, setEditWindow]   = useState(15);
+  const [whitelistInput, setWhitelistInput] = useState("");
+  const [whitelistLoading, setWhitelistLoading] = useState(false);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "admin") navigate("/");
@@ -120,6 +122,55 @@ const AdminSettings = () => {
       }
     } catch { toast.error("Failed to unblock IP"); }
     finally { setUnblocking(null); }
+  };
+
+  const handleWhitelistAdd = async (ipToAdd) => {
+    const ip = ipToAdd || whitelistInput;
+    if (!ip?.trim()) return;
+    setWhitelistLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/rate-limit/whitelist`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ ip: ip.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`🛡️ IP ${ip} Whitelisted successfully`);
+        setWhitelistInput("");
+        fetchRateLimit();
+        fetchIPs();
+      } else {
+        toast.error(data.message || "Failed to whitelist IP");
+      }
+    } catch {
+      toast.error("Network error whitelisting IP");
+    } finally {
+      setWhitelistLoading(false);
+    }
+  };
+
+  const handleWhitelistRemove = async (ip) => {
+    if (!window.confirm(`Remove ${ip} from the whitelist?`)) return;
+    setWhitelistLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/rate-limit/whitelist/${encodeURIComponent(ip)}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`❌ Removed ${ip} from whitelist`);
+        fetchRateLimit();
+        fetchIPs();
+      } else {
+        toast.error(data.message || "Failed to remove whitelist");
+      }
+    } catch {
+      toast.error("Network error removing IP from whitelist");
+    } finally {
+      setWhitelistLoading(false);
+    }
   };
 
   if (!currentUser) return null;
@@ -328,6 +379,31 @@ const AdminSettings = () => {
           </div>
         </div>
 
+          {/* ── Dynamic Whitelist Input Field ── */}
+          <div className="rl-whitelist-form" style={{ marginTop: '1.5rem', background: 'rgba(0,0,0,0.15)', padding: '20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h5 className="rl-form-title">🛡️ Quick Whitelist IP</h5>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <input
+                type="text"
+                className="rl-input"
+                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', flex: 1, padding: '10px 14px' }}
+                placeholder="Enter IP Address to Whitelist (e.g. 103.208.68.211)"
+                value={whitelistInput}
+                onChange={(e) => setWhitelistInput(e.target.value)}
+              />
+              <button
+                type="button"
+                className="rl-save-btn"
+                onClick={() => handleWhitelistAdd()}
+                disabled={whitelistLoading}
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)' }}
+              >
+                {whitelistLoading ? "Adding..." : "🛡️ Whitelist IP"}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* ── Live IP Monitor Table ── */}
         <div className="rl-panel" style={{ marginTop: '1.5rem' }}>
           <div className="rl-panel-header">
@@ -335,7 +411,7 @@ const AdminSettings = () => {
               <span className="rl-icon">🌐</span>
               <div>
                 <h4 className="rl-panel-title">Live IP Monitor</h4>
-                <p className="rl-panel-subtitle">All IPs tracked this window — blocked ones shown first</p>
+                <p className="rl-panel-subtitle">All IPs tracked this window — whitelisted & blocked ones first</p>
               </div>
             </div>
             <button className="asettings-refresh-btn" onClick={fetchIPs} disabled={ipLoading}>
@@ -363,41 +439,77 @@ const AdminSettings = () => {
                 </thead>
                 <tbody>
                   {ipList.map((entry) => (
-                    <tr key={entry.ip} className={entry.blocked ? 'rl-row-blocked' : ''}>
-                      <td><code className="rl-ip-code">{entry.ip}</code></td>
-                      <td><strong>{entry.requests}</strong> / {entry.limit}</td>
+                    <tr key={entry.ip} className={entry.whitelisted ? 'rl-row-whitelisted' : entry.blocked ? 'rl-row-blocked' : ''}>
                       <td>
-                        <div className="rl-mini-bar-track">
-                          <div
-                            className={`rl-mini-bar-fill ${
-                              entry.percent >= 100 ? 'fill-danger' :
-                              entry.percent >= 60  ? 'fill-warn'   : 'fill-ok'
-                            }`}
-                            style={{ width: `${entry.percent}%` }}
-                          />
-                        </div>
-                        <span className="rl-mini-pct">{entry.percent}%</span>
+                        <code className="rl-ip-code" style={{ borderLeft: entry.whitelisted ? '3px solid #10b981' : '' }}>
+                          {entry.ip}
+                        </code>
+                      </td>
+                      <td>{entry.whitelisted ? '∞ (Unlimited)' : <span><strong>{entry.requests}</strong> / {entry.limit}</span>}</td>
+                      <td>
+                        {entry.whitelisted ? (
+                          <span style={{ fontSize: '11px', color: '#10b981' }}>🛡️ Whitelisted</span>
+                        ) : (
+                          <>
+                            <div className="rl-mini-bar-track">
+                              <div
+                                className={`rl-mini-bar-fill ${
+                                  entry.percent >= 100 ? 'fill-danger' :
+                                  entry.percent >= 60  ? 'fill-warn'   : 'fill-ok'
+                                }`}
+                                style={{ width: `${entry.percent}%` }}
+                              />
+                            </div>
+                            <span className="rl-mini-pct">{entry.percent}%</span>
+                          </>
+                        )}
                       </td>
                       <td>
-                        {entry.blocked
-                          ? <span className="rl-badge-blocked">🚫 Blocked</span>
-                          : entry.percent >= 60
-                            ? <span className="rl-badge-warn">⚠️ Warning</span>
-                            : <span className="rl-badge-ok">✅ Normal</span>
-                        }
+                        {entry.whitelisted ? (
+                          <span className="rl-badge-ok" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>🛡️ Whitelisted</span>
+                        ) : entry.blocked ? (
+                          <span className="rl-badge-blocked">🚫 Blocked</span>
+                        ) : entry.percent >= 60 ? (
+                          <span className="rl-badge-warn">⚠️ Warning</span>
+                        ) : (
+                          <span className="rl-badge-ok">✅ Normal</span>
+                        )}
                       </td>
                       <td><span className="rl-route">{entry.lastRoute || '—'}</span></td>
                       <td><span className="rl-time">{entry.lastBlocked ? new Date(entry.lastBlocked).toLocaleTimeString() : '—'}</span></td>
                       <td>
-                        {entry.blocked && (
-                          <button
-                            className="rl-unblock-btn"
-                            onClick={() => handleUnblock(entry.ip)}
-                            disabled={unblocking === entry.ip}
-                          >
-                            {unblocking === entry.ip ? '⏳' : '🔓 Unblock'}
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {entry.whitelisted ? (
+                            <button
+                              className="rl-unblock-btn"
+                              style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#f87171' }}
+                              onClick={() => handleWhitelistRemove(entry.ip)}
+                              disabled={whitelistLoading}
+                            >
+                              Remove Whitelist
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                className="rl-unblock-btn"
+                                style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.25)', color: '#34d399' }}
+                                onClick={() => handleWhitelistAdd(entry.ip)}
+                                disabled={whitelistLoading}
+                              >
+                                🛡️ Whitelist
+                              </button>
+                              {entry.blocked && (
+                                <button
+                                  className="rl-unblock-btn"
+                                  onClick={() => handleUnblock(entry.ip)}
+                                  disabled={unblocking === entry.ip}
+                                >
+                                  {unblocking === entry.ip ? '⏳' : '🔓 Unblock'}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -406,6 +518,7 @@ const AdminSettings = () => {
             </div>
           )}
         </div>
+
 
       </div>
     </section>

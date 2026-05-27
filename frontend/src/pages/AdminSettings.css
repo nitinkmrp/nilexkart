@@ -448,6 +448,11 @@
   border-left: 3px solid #ef4444;
 }
 
+.rl-row-whitelisted {
+  background: rgba(16, 185, 129, 0.05);
+  border-left: 3px solid #10b981;
+}
+
 .rl-ip-code {
   font-family: 'Courier New', monospace;
   font-size: 12px;
