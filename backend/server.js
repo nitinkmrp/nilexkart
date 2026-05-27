@@ -51,6 +51,13 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   store: rateLimitStore,
   message: { success: false, message: 'Too many requests, please try again later.' },
+  handler: (req, res, next, options) => {
+    // 🔴 Log the blocked IP so you can see who is abusing
+    console.warn(
+      `🚫 RATE LIMIT BLOCKED | IP: ${req.ip} | Route: ${req.originalUrl} | Time: ${new Date().toISOString()}`
+    );
+    res.status(options.statusCode).json(options.message);
+  },
 });
 app.use('/api/', globalLimiter);
 
