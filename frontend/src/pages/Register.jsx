@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginUser } from '../app/userSlice';
 import './Register.css';
 
 export default function Register() {
@@ -10,12 +12,14 @@ export default function Register() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      await axios.post('/api/auth/register', { email, password });
+      const baseUrl = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
+      await axios.post(`${baseUrl}/api/auth/register`, { email, password });
       setStep(2);
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong');
@@ -26,12 +30,14 @@ export default function Register() {
     e.preventDefault();
     setError('');
     try {
-      const { data } = await axios.post('/api/auth/verify-otp', {
+      const baseUrl = process.env.REACT_APP_API_URL || "https://final-project1-d3iz.onrender.com";
+      const { data } = await axios.post(`${baseUrl}/api/auth/verify-otp`, {
         email,
         password,
         otp,
       });
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('jwtToken', data.token);
+      dispatch(loginUser(data.data));
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Verification failed');

@@ -248,6 +248,102 @@ router.post('/verify', async (req, res) => {
   }
 });
 
+// Route: POST /api/payment/checkout-cod
+// Desc:  Create a Cash on Delivery order (useful for mobile app)
+router.post('/checkout-cod', async (req, res) => {
+  try {
+    const { email, items, amount, address } = req.body;
+
+    const carriers = ['BlueDart', 'Delhivery Express', 'DHL Express', 'FedEx'];
+    const chosenCarrier = carriers[Math.floor(Math.random() * carriers.length)];
+    const randomTrackingId = `NIX-COD-${chosenCarrier.substring(0,3).toUpperCase()}-${Math.floor(10000000 + Math.random() * 90000000)}-IN`;
+
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    // Save order to db
+    const newOrder = new Order({
+      email,
+      items,
+      totalAmount: amount,
+      razorpayOrderId: 'COD_' + Date.now(),
+      razorpayPaymentId: 'COD',
+      status: 'Pending Cash',
+      trackingId: randomTrackingId,
+      carrier: chosenCarrier,
+      shippingAddress: address || '123 Nilex Corporate Boulevard, Suite 50',
+      deliveryStatus: 'Confirmed',
+      isManualDelivery: false,
+      deliveryTimeline: [
+        {
+          status: 'Confirmed',
+          label: 'Order Confirmed',
+          desc: 'Your COD order was successfully placed.',
+          time: nowTime
+        }
+      ]
+    });
+    await newOrder.save();
+
+    // ── Deduct purchased quantities from product stock ───────────────────
+    try {
+      const ProductModel = mongoose.models.Product || mongoose.model('Product');
+      const StockMovementModel = mongoose.models.StockMovement || mongoose.model('StockMovement');
+
+      for (const item of items) {
+        const pId = item._id || item.id;
+        if (!pId) continue;
+
+        const product = await ProductModel.findById(pId);
+        if (!product) continue;
+
+        const qtyPurchased = Number(item.qty || 1);
+        const oldStock = product.stock || 0;
+
+        const updates = {};
+        let newStock = oldStock - qtyPurchased;
+        if (newStock < 0) newStock = 0;
+
+        if (item.selectedSize && product.sizeStock) {
+          const currentSizeStock = product.sizeStock.get(item.selectedSize) || 0;
+          let newSizeStock = currentSizeStock - qtyPurchased;
+          if (newSizeStock < 0) newSizeStock = 0;
+
+          product.sizeStock.set(item.selectedSize, newSizeStock);
+          updates.sizeStock = product.sizeStock;
+
+          let total = 0;
+          for (const [size, sQty] of product.sizeStock.entries()) {
+            total += Number(sQty || 0);
+          }
+          newStock = total;
+        }
+
+        updates.stock = newStock;
+        await ProductModel.findByIdAndUpdate(pId, { $set: updates });
+
+        if (StockMovementModel) {
+          await StockMovementModel.create({
+            productId: pId,
+            productName: product.productName,
+            changeQty: -qtyPurchased,
+            newStock: newStock,
+            type: 'out',
+            reason: `Customer COD purchase (Order #${newOrder.razorpayOrderId})`,
+            updatedBy: email || 'System'
+          });
+        }
+      }
+    } catch (stockErr) {
+      console.error("Failed to automatically deduct product stock for COD:", stockErr);
+    }
+
+    res.status(200).json({ success: true, message: "COD Order placed successfully", order: newOrder });
+  } catch (error) {
+    console.error("COD checkout failed:", error);
+    res.status(500).json({ message: "COD checkout failed" });
+  }
+});
+
 // Route: GET /api/payment/orders/:email
 router.get('/orders/:email', async (req, res) => {
   try {

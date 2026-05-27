@@ -37,7 +37,7 @@ const Profile = () => {
       setOrdersLoading(true);
       fetch(`${baseUrl}/api/payment/orders/${currentUser.email}`)
         .then(res => res.json())
-        .then(data => { if (data.success) setOrders(data.orders); })
+        .then(data => { if (data.success) setOrders(data.data || data.orders || []); })
         .catch(err => console.error("Error fetching orders:", err))
         .finally(() => setOrdersLoading(false));
     }
@@ -279,7 +279,7 @@ const Profile = () => {
                       ) : (
                         orders.map((order) => {
                           const isExpanded = selectedOrderId === order._id;
-                          const dlStatus = order.tracking?.deliveryStatus || "Confirmed";
+                          const dlStatus = order.deliveryStatus || "Confirmed";
                           
                           // Determine status badge color
                           let statusBadgeClass = "bg-secondary";
@@ -369,31 +369,31 @@ const Profile = () => {
                                           <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                                             <div>
                                               <h6 className="drawer-sub-title mb-0">🚚 Live Shipment Tracking</h6>
-                                              <small className="text-muted">Partner: <strong>{order.tracking?.carrier || "Delhivery Express"}</strong></small>
+                                              <small className="text-muted">Partner: <strong>{order.carrier || "Delhivery Express"}</strong></small>
                                             </div>
                                             <div className="text-end">
                                               <span className="d-block tracking-id-label">Tracking ID</span>
                                               <span 
                                                 className="badge bg-dark text-white cursor-pointer tracking-id-badge"
                                                 onClick={() => {
-                                                  navigator.clipboard.writeText(order.tracking?.trackingId || "");
+                                                  navigator.clipboard.writeText(order.trackingId || "");
                                                   toast.success("Tracking ID copied!");
                                                 }}
                                                 title="Click to copy tracking ID"
                                               >
-                                                📋 {order.tracking?.trackingId || "Generating..."}
+                                                📋 {order.trackingId || "Generating..."}
                                               </span>
                                             </div>
                                           </div>
 
                                           <div className="shipping-address-banner p-3 mb-4 rounded-3 border-start-thick">
                                             <span className="d-block text-muted-small">Delivery Address</span>
-                                            <p className="mb-0 fw-medium text-dark">{order.tracking?.shippingAddress || "123 Nilex Corporate Boulevard, Suite 50"}</p>
+                                            <p className="mb-0 fw-medium text-dark">{order.shippingAddress || "123 Nilex Corporate Boulevard, Suite 50"}</p>
                                           </div>
 
                                           {/* Stepper Stepping Engine */}
                                           <div className="tracking-timeline-stepper">
-                                            {order.tracking?.timeline?.map((step, sIdx) => (
+                                            {order.deliveryTimeline?.map((step, sIdx) => (
                                               <div 
                                                 key={sIdx} 
                                                 className={`stepper-node ${step.isCompleted ? "completed" : ""} ${step.isCurrent ? "current" : ""}`}
@@ -402,7 +402,7 @@ const Profile = () => {
                                                   <div className="stepper-dot">
                                                     {step.isCompleted ? "✓" : sIdx + 1}
                                                   </div>
-                                                  {sIdx < order.tracking.timeline.length - 1 && (
+                                                  {sIdx < order.deliveryTimeline.length - 1 && (
                                                     <div className="stepper-connector" />
                                                   )}
                                                 </div>
