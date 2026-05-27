@@ -52,12 +52,54 @@ export const rateLimitStore = new MemoryStore();
 // ── Blocked IP log (in-memory, max 200 entries) ──────────────────────────
 export const blockedIPLog = [];
 
+// ── Custom IP Request Tracker (reliable across all package versions) ─────
+export const ipRequestTracker = {};
+
+export const resetTrackerIP = (ip) => {
+  if (ipRequestTracker[ip]) {
+    ipRequestTracker[ip].count = 0;
+  }
+};
+
+export const resetAllTrackerIPs = () => {
+  Object.keys(ipRequestTracker).forEach(ip => {
+    ipRequestTracker[ip].count = 0;
+  });
+};
+
+let trackerResetInterval;
+export const startTrackerResetTimer = () => {
+  if (trackerResetInterval) clearInterval(trackerResetInterval);
+  trackerResetInterval = setInterval(() => {
+    resetAllTrackerIPs();
+    console.log('[RateLimit] Custom request tracker counts reset for new window');
+  }, rateLimitConfig.windowMs);
+};
+startTrackerResetTimer();
+
 const getRealIP = (req) => {
   // X-Forwarded-For may contain a chain: "clientIP, proxy1, proxy2"
   // First entry is always the real client IP
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) return forwarded.split(',')[0].trim();
   return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+
+// IP Request tracking middleware
+const trackIpRequests = (req, res, next) => {
+  const realIP = getRealIP(req);
+  if (!ipRequestTracker[realIP]) {
+    ipRequestTracker[realIP] = { count: 0, lastRoute: '', lastTime: '' };
+  }
+  
+  const isWhitelisted = (rateLimitConfig.whitelist || []).includes(realIP);
+  if (!isWhitelisted) {
+    ipRequestTracker[realIP].count += 1;
+  }
+  
+  ipRequestTracker[realIP].lastRoute = req.originalUrl;
+  ipRequestTracker[realIP].lastTime = new Date().toISOString();
+  next();
 };
 
 const globalLimiter = rateLimit({
@@ -77,11 +119,18 @@ const globalLimiter = rateLimit({
     const entry  = { ip: realIP, route: req.originalUrl, time: new Date().toISOString() };
     blockedIPLog.unshift(entry);
     if (blockedIPLog.length > 200) blockedIPLog.pop();
+    
+    // Explicitly make sure count is at max limit in tracker too
+    if (ipRequestTracker[realIP]) {
+      ipRequestTracker[realIP].count = Math.max(ipRequestTracker[realIP].count, rateLimitConfig.max);
+    }
+    
     console.warn(`🚫 RATE LIMIT BLOCKED | IP: ${realIP} | Route: ${req.originalUrl} | Time: ${entry.time}`);
     res.status(options.statusCode).json(options.message);
   },
 });
-app.use('/api/', globalLimiter);
+
+app.use('/api/', trackIpRequests, globalLimiter);
 
 
 // ── CORS ────────────────────────────────────────────────────

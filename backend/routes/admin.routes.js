@@ -1,7 +1,14 @@
 import express from 'express';
 import roleGuard from '../middleware/roleGuard.js';
-import { rateLimitConfig, rateLimitStore } from '../server.js';
-import { blockedIPLog } from '../server.js';
+import {
+  rateLimitConfig,
+  rateLimitStore,
+  blockedIPLog,
+  ipRequestTracker,
+  resetTrackerIP,
+  resetAllTrackerIPs,
+  startTrackerResetTimer
+} from '../server.js';
 
 const router = express.Router();
 
@@ -11,15 +18,8 @@ router.use(roleGuard(['admin']));
 // ── GET /api/admin/rate-limit ── current config & live hit stats ──────────
 router.get('/rate-limit', async (req, res) => {
   try {
-    let hits = {};
-    try {
-      if (rateLimitStore.hits) {
-        hits = Object.fromEntries(rateLimitStore.hits);
-      }
-    } catch (_) {}
-
-    const activeIPs = Object.keys(hits).length;
-    const totalHits = Object.values(hits).reduce((s, v) => s + (v.totalHits || v || 0), 0);
+    const activeIPs = Object.keys(ipRequestTracker).length;
+    const totalHits = Object.values(ipRequestTracker).reduce((s, v) => s + (v.count || 0), 0);
 
     res.json({
       success: true,
@@ -39,15 +39,18 @@ router.get('/rate-limit', async (req, res) => {
 // ── GET /api/admin/rate-limit/ips ── list all tracked IPs ─────────────────
 router.get('/rate-limit/ips', async (req, res) => {
   try {
-    let hits = {};
-    try {
-      if (rateLimitStore.hits) hits = Object.fromEntries(rateLimitStore.hits);
-    } catch (_) {}
-
     const max = rateLimitConfig.max;
 
-    const ipList = Object.entries(hits).map(([ip, val]) => {
+    const ipList = Object.entries(ipRequestTracker).map(([ip, val]) => {
       const isWhitelisted = (rateLimitConfig.whitelist || []).includes(ip);
+      const count = val.count || 0;
+      
+      // Determine blocked status (either exceeding requests limit or logged in blocked logs)
+      const lastBlock = blockedIPLog
+        .filter(e => e.ip === ip)
+        .sort((a, b) => new Date(b.time) - new Date(a.time))[0];
+      
+      const blocked = count >= max || !!lastBlock;
 
       return {
         ip,
@@ -56,7 +59,7 @@ router.get('/rate-limit/ips', async (req, res) => {
         percent: isWhitelisted ? 0 : Math.min(100, Math.round((count / max) * 100)),
         blocked: isWhitelisted ? false : blocked,
         whitelisted: isWhitelisted,
-        lastRoute:   lastBlock?.route || null,
+        lastRoute:   val.lastRoute || lastBlock?.route || null,
         lastBlocked: lastBlock?.time  || null,
       };
     });
@@ -90,11 +93,23 @@ router.get('/rate-limit/ips', async (req, res) => {
 router.post('/rate-limit/unblock/:ip', async (req, res) => {
   try {
     const ip = decodeURIComponent(req.params.ip);
+    
+    // Clear express-rate-limit internal counter
     if (typeof rateLimitStore.resetKey === 'function') {
       await rateLimitStore.resetKey(ip);
     } else if (rateLimitStore.hits) {
       rateLimitStore.hits.delete(ip);
     }
+    
+    // Clear custom tracker counter
+    resetTrackerIP(ip);
+    
+    // Remove from blockedIPLog too so they don't stay marked as blocked
+    const index = blockedIPLog.findIndex(e => e.ip === ip);
+    if (index > -1) {
+      blockedIPLog.splice(index, 1);
+    }
+
     console.log(`[Admin] Unblocked IP: ${ip}`);
     res.json({ success: true, message: `IP ${ip} has been unblocked` });
   } catch (err) {
@@ -121,6 +136,8 @@ router.patch('/rate-limit', async (req, res) => {
         return res.status(400).json({ success: false, message: 'windowMinutes must be between 1 and 60' });
       }
       rateLimitConfig.windowMs = parsed * 60 * 1000;
+      // Restart reset interval with new window minutes!
+      startTrackerResetTimer();
     }
 
     console.log(`[Admin] Rate limit updated → max: ${rateLimitConfig.max}, window: ${rateLimitConfig.windowMs / 60000}min`);
@@ -147,6 +164,13 @@ router.post('/rate-limit/reset', async (req, res) => {
     } else if (rateLimitStore.hits) {
       rateLimitStore.hits.clear();
     }
+    
+    // Reset custom tracker counters
+    resetAllTrackerIPs();
+    
+    // Clear blocked logs
+    blockedIPLog.length = 0;
+
     console.log('[Admin] Rate limit counters reset for all IPs');
     res.json({ success: true, message: 'Rate limit counters reset for all IPs' });
   } catch (err) {
@@ -167,12 +191,15 @@ router.post('/rate-limit/whitelist', async (req, res) => {
     const cleanIp = ip.trim();
     if (!rateLimitConfig.whitelist.includes(cleanIp)) {
       rateLimitConfig.whitelist.push(cleanIp);
-      // If it was blocked, make sure to clear its count so it's instantly unblocked!
+      
+      // Instantly unblock if they were blocked
       if (typeof rateLimitStore.resetKey === 'function') {
         await rateLimitStore.resetKey(cleanIp);
-      } else if (rateLimitStore.hits) {
-        rateLimitStore.hits.delete(cleanIp);
       }
+      resetTrackerIP(cleanIp);
+      
+      const index = blockedIPLog.findIndex(e => e.ip === cleanIp);
+      if (index > -1) blockedIPLog.splice(index, 1);
     }
 
     console.log(`[Admin] Added IP to whitelist: ${cleanIp}`);
