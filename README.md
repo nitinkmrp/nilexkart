@@ -1,4 +1,4 @@
-# 🛒 NilexCart — Full Stack Marketplace Platform
+# 🛒 NilexKart — Full Stack Marketplace Platform
 
 > A production-ready, full-stack e-commerce marketplace built with the **MERN Stack** — featuring real-time chat, Razorpay payments, Cloudinary media, and JWT authentication.
 
@@ -21,10 +21,9 @@
 
 ## 📌 About the Project
 
-**NilexCart** is an OLX-style second-hand product marketplace where users can:
+**Nilexkart** is an online product marketplace where users can:
 - Post products for sale with images and descriptions
 - Browse, search, and filter listings by category
-- Chat with sellers in real-time
 - Purchase products via Razorpay payment gateway
 - Manage their listings through a personal dashboard
 
