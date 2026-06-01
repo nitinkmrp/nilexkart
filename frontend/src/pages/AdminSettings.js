@@ -472,7 +472,6 @@ const AdminSettings = () => {
               </button>
             </div>
           </div>
-        </div>
 
         {/* ── Backup & Restore Panel ── */}
         <div className="rl-panel" style={{ marginTop: '1.5rem' }}>
