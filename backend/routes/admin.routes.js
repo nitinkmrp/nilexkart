@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import roleGuard from '../middleware/roleGuard.js';
 import {
   rateLimitConfig,
@@ -229,6 +230,106 @@ router.delete('/rate-limit/whitelist/:ip', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/admin/backup/export ── Export all database collections ──────────
+router.get('/backup/export', async (req, res) => {
+  try {
+    const collections = await mongoose.connection.db.collections();
+    const backupData = {};
+    
+    for (const col of collections) {
+      const name = col.collectionName;
+      if (name.startsWith('system.')) continue;
+      const docs = await col.find({}).toArray();
+      backupData[name] = docs;
+    }
+
+    console.log(`[Backup] Successful database export requested by Admin`);
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      dbName: mongoose.connection.name,
+      collections: backupData
+    });
+  } catch (err) {
+    console.error(`[Backup] Export failed:`, err);
+    res.status(500).json({ success: false, message: 'Export failed: ' + err.message });
+  }
+});
+
+// ── POST /api/admin/backup/import ── Import database collections from backup ──
+router.post('/backup/import', async (req, res) => {
+  try {
+    const { collections } = req.body;
+    if (!collections || typeof collections !== 'object') {
+      return res.status(400).json({ success: false, message: 'Invalid backup format. "collections" object is required.' });
+    }
+
+    const db = mongoose.connection.db;
+
+    // Helper function to restore dates and ObjectIds from JSON representation
+    const restoreBSON = (val, key = '') => {
+      if (val === null || val === undefined) return val;
+      if (typeof val === 'string') {
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?(Z|[+-]\d{2}(:?\d{2})?)?$/;
+        if (isoDateRegex.test(val)) {
+          return new Date(val);
+        }
+        const isHex24 = /^[0-9a-fA-F]{24}$/.test(val);
+        const isIdKey = key === '_id' || /id$/i.test(key);
+        if (isHex24 && isIdKey) {
+          try {
+            return new mongoose.Types.ObjectId(val);
+          } catch (e) {
+            return val;
+          }
+        }
+        return val;
+      }
+      if (Array.isArray(val)) {
+        return val.map(item => restoreBSON(item, key));
+      }
+      if (typeof val === 'object') {
+        const res = {};
+        for (const k in val) {
+          res[k] = restoreBSON(val[k], k);
+        }
+        return res;
+      }
+      return val;
+    };
+
+    const results = {};
+
+    for (const [colName, docs] of Object.entries(collections)) {
+      if (colName.startsWith('system.')) continue;
+      if (!Array.isArray(docs)) continue;
+
+      const col = db.collection(colName);
+      
+      // Delete existing documents in the collection
+      await col.deleteMany({});
+
+      if (docs.length > 0) {
+        // Restore ObjectId and Date fields
+        const parsedDocs = docs.map(d => restoreBSON(d));
+        await col.insertMany(parsedDocs);
+      }
+
+      results[colName] = { deleted: docs.length, inserted: docs.length };
+    }
+
+    console.log(`[Backup] Successful database restore completed by Admin`);
+    res.json({
+      success: true,
+      message: 'Database restored successfully!',
+      results
+    });
+  } catch (err) {
+    console.error(`[Backup] Restore failed:`, err);
+    res.status(500).json({ success: false, message: 'Restore failed: ' + err.message });
   }
 });
 

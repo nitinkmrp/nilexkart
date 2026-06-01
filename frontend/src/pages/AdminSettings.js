@@ -26,6 +26,10 @@ const AdminSettings = () => {
   const [whitelistInput, setWhitelistInput] = useState("");
   const [whitelistLoading, setWhitelistLoading] = useState(false);
 
+  // Backup & Restore state
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+
   useEffect(() => {
     if (!currentUser || currentUser.role !== "admin") navigate("/");
   }, [currentUser, navigate]);
@@ -171,6 +175,72 @@ const AdminSettings = () => {
     } finally {
       setWhitelistLoading(false);
     }
+  };
+
+  const handleBackupExport = async () => {
+    setBackupLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/backup/export`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const dateStr = new Date().toISOString().split("T")[0];
+        a.href = url;
+        a.download = `nilexcart_backup_${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("🎉 Backup downloaded successfully to your laptop!");
+      } else {
+        toast.error(data.message || "Failed to generate backup");
+      }
+    } catch {
+      toast.error("Network error exporting backup");
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleBackupImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("🚨 WARNING: This will overwrite ALL existing data in the database collections with the backup data. Do you want to proceed?")) {
+      e.target.value = "";
+      return;
+    }
+
+    setRestoreLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const backupObj = JSON.parse(event.target.result);
+        const res = await fetch(`${BASE_URL}/api/admin/backup/import`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(backupObj),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("🎉 Database successfully restored from backup!");
+          fetchRateLimit();
+          fetchIPs();
+        } else {
+          toast.error(data.message || "Failed to restore backup");
+        }
+      } catch (err) {
+        toast.error("Invalid JSON backup file or restore failed");
+      } finally {
+        setRestoreLoading(false);
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file);
   };
 
   if (!currentUser) return null;
@@ -400,6 +470,67 @@ const AdminSettings = () => {
               >
                 {whitelistLoading ? "Adding..." : "🛡️ Whitelist IP"}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Backup & Restore Panel ── */}
+        <div className="rl-panel" style={{ marginTop: '1.5rem' }}>
+          <div className="rl-panel-header">
+            <div className="rl-panel-title-group">
+              <span className="rl-icon" style={{ background: 'rgba(139, 92, 246, 0.1)', borderColor: 'rgba(139, 92, 246, 0.2)' }}>💾</span>
+              <div>
+                <h4 className="rl-panel-title">Database Backup & Restore</h4>
+                <p className="rl-panel-subtitle">Export database collections to local storage or restore from previous backup</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '280px', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#60a5fa' }}>📦 Download Backup</h5>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.5' }}>
+                Securely fetch all current data collections (Users, Products, Bills, Customers, Categories, and Orders) and compile them into a downloadable JSON file.
+              </p>
+              <button
+                type="button"
+                className="rl-save-btn"
+                onClick={handleBackupExport}
+                disabled={backupLoading}
+                style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)', marginTop: 'auto', alignSelf: 'flex-start' }}
+              >
+                {backupLoading ? "⏳ Exporting Backup..." : "💾 Download Backup (.json)"}
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minWidth: '280px', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#f87171' }}>🚨 Restore Database</h5>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.5' }}>
+                Restore your database from an existing `.json` backup file. <strong>Warning:</strong> This will replace all existing documents in whitelisted collections!
+              </p>
+              
+              <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label
+                  className="rl-save-btn"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)',
+                    cursor: restoreLoading ? 'not-allowed' : 'pointer',
+                    display: 'inline-block',
+                    textAlign: 'center',
+                    opacity: restoreLoading ? 0.6 : 1
+                  }}
+                >
+                  {restoreLoading ? "⏳ Restoring..." : "📤 Upload & Restore"}
+                  <input
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={handleBackupImport}
+                    disabled={restoreLoading}
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </div>
