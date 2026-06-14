@@ -6,7 +6,7 @@ import {
   fetchBills, createBillThunk, updateBillThunk,
   deleteBillThunk, authorizeCashThunk, clearBillMessages,
 } from "../app/billSlice";
-import { fetchCustomers } from "../app/customerSlice";
+import { fetchCustomers, createCustomerThunk, clearCustomerMessages } from "../app/customerSlice";
 import "./AdminBills.css";
 
 const EMPTY_FORM = {
@@ -36,7 +36,7 @@ const AdminBills = () => {
   const navigate = useNavigate();
   const { bills, totalRevenue, loading, error, successMsg } = useSelector((s) => s.bills);
   const { currentUser } = useSelector((s) => s.users);
-  const { customers } = useSelector((s) => s.customers);
+  const { customers, error: custError, successMsg: custSuccess } = useSelector((s) => s.customers);
 
   const [search,            setSearch]            = useState("");
   const [methodFilter,      setMethodFilter]      = useState("all");
@@ -52,6 +52,10 @@ const AdminBills = () => {
   const [selectedCustId,    setSelectedCustId]    = useState("");
   const [custSearch,        setCustSearch]        = useState("");
   const [showCustDropdown,  setShowCustDropdown]  = useState(false);
+  // ── Quick Customer Add state ──────────────────────────
+  const [showQuickAddCustomer, setShowQuickAddCustomer] = useState(false);
+  const [quickCust, setQuickCust] = useState({ name: "", mobile: "", email: "", address: "", notes: "" });
+  const [showQuickCustModal, setShowQuickCustModal] = useState(false);
   // ── Camera state ───────────────────────────────────
   const [showCamera,        setShowCamera]        = useState(false);
   const [camStream,         setCamStream]         = useState(null);
@@ -70,6 +74,11 @@ const AdminBills = () => {
     if (successMsg) { toast.success(successMsg); dispatch(clearBillMessages()); }
     if (error)      { toast.error(error);        dispatch(clearBillMessages()); }
   }, [successMsg, error, dispatch]);
+
+  useEffect(() => {
+    if (custSuccess) { toast.success(custSuccess); dispatch(clearCustomerMessages()); }
+    if (custError)   { toast.error(custError);     dispatch(clearCustomerMessages()); }
+  }, [custSuccess, custError, dispatch]);
 
   // ── Close customer dropdown when clicking outside ──
   useEffect(() => {
@@ -129,6 +138,46 @@ const AdminBills = () => {
     setSelectedCustId("");
     setCustSearch("");
     setForm((prev) => ({ ...prev, customerName: "", customerEmail: "", customerPhone: "" }));
+  };
+
+  const handleQuickAddCustomer = async (e) => {
+    if (e) e.preventDefault();
+    if (!quickCust.name || !quickCust.mobile) {
+      toast.error("Name and mobile number are required");
+      return;
+    }
+    try {
+      const resultAction = await dispatch(createCustomerThunk(quickCust));
+      if (createCustomerThunk.fulfilled.match(resultAction)) {
+        const newCust = resultAction.payload;
+        selectCustomer(newCust);
+        setShowQuickAddCustomer(false);
+        setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
+      } else {
+        toast.error(resultAction.payload || "Failed to create customer");
+      }
+    } catch (err) {
+      toast.error("Error creating customer");
+    }
+  };
+
+  const handleHeaderAddCustomer = async (e) => {
+    if (e) e.preventDefault();
+    if (!quickCust.name || !quickCust.mobile) {
+      toast.error("Name and mobile number are required");
+      return;
+    }
+    try {
+      const resultAction = await dispatch(createCustomerThunk(quickCust));
+      if (createCustomerThunk.fulfilled.match(resultAction)) {
+        setShowQuickCustModal(false);
+        setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
+      } else {
+        toast.error(resultAction.payload || "Failed to create customer");
+      }
+    } catch (err) {
+      toast.error("Error creating customer");
+    }
   };
 
   // ── Camera helpers ─────────────────────────────────
@@ -213,6 +262,8 @@ const AdminBills = () => {
     setReceiptPrev(null);
     setSelectedCustId("");
     setCustSearch("");
+    setShowQuickAddCustomer(false);
+    setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
     setShowForm(true);
   };
 
@@ -237,6 +288,8 @@ const AdminBills = () => {
     setReceiptFile(null);
     setReceiptPrev(b.receiptUrl || null);
     setEditTarget(b);
+    setShowQuickAddCustomer(false);
+    setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
     setShowForm(true);
   };
 
@@ -329,9 +382,17 @@ const AdminBills = () => {
               {bills.length} transactions · ₹{totalRevenue?.toLocaleString("en-IN") || "0"} total revenue
             </p>
           </div>
-          <button className="bills-add-btn" onClick={openCreate}>
-            + Record Transaction
-          </button>
+          <div className="d-flex gap-2">
+            <button className="bills-add-btn" style={{ background: "#5c6bc0" }} onClick={() => {
+              setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
+              setShowQuickCustModal(true);
+            }}>
+              + Add Customer
+            </button>
+            <button className="bills-add-btn" onClick={openCreate}>
+              + Record Transaction
+            </button>
+          </div>
         </div>
 
         {/* ── Stats cards ─────────────────────────────── */}
@@ -564,87 +625,186 @@ const AdminBills = () => {
             <form onSubmit={handleSubmit}>
               <div className="bill-form-grid">
 
-                {/* ── Customer Picker ── */}
-                <div className="bill-form-full">
-                  <label className="bill-form-label">Select Customer</label>
-                  <div className="cust-picker-wrap" ref={custRef}>
-                    <div className="cust-picker-input-row">
-                      <span className="cust-picker-icon">👤</span>
-                      <input
-                        className="cust-picker-input"
-                        placeholder="Search by name, mobile or email…"
-                        value={custSearch}
-                        onChange={(e) => {
-                          setCustSearch(e.target.value);
-                          setShowCustDropdown(true);
-                          if (!e.target.value) clearCustSelection();
-                        }}
-                        onFocus={() => setShowCustDropdown(true)}
-                        autoComplete="off"
+                {/* ── Customer Picker or Quick Add Customer ── */}
+                {showQuickAddCustomer ? (
+                  <div className="bill-form-full quick-add-cust-box" style={{ background: "#f8f9fa", padding: "16px", borderRadius: "12px", border: "1px dashed #0f3460", marginBottom: "10px" }}>
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <h6 style={{ color: "#0f3460", fontWeight: "bold", margin: 0 }}>👤 Quick Add New Customer</h6>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        style={{ fontSize: '12px' }}
+                        onClick={() => setShowQuickAddCustomer(false)}
+                        aria-label="Close"
                       />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label className="bill-form-label">Full Name *</label>
+                        <input 
+                          className="bill-form-input" 
+                          value={quickCust.name}
+                          onChange={(e) => setQuickCust({ ...quickCust, name: e.target.value })}
+                          placeholder="e.g. Rajesh Kumar" 
+                        />
+                      </div>
+                      <div>
+                        <label className="bill-form-label">Mobile Number *</label>
+                        <input 
+                          className="bill-form-input" 
+                          value={quickCust.mobile}
+                          onChange={(e) => setQuickCust({ ...quickCust, mobile: e.target.value })}
+                          placeholder="+91 98765 43210" 
+                        />
+                      </div>
+                      <div className="bill-form-full">
+                        <label className="bill-form-label">Email (optional)</label>
+                        <input 
+                          type="email" 
+                          className="bill-form-input" 
+                          value={quickCust.email}
+                          onChange={(e) => setQuickCust({ ...quickCust, email: e.target.value })}
+                          placeholder="customer@example.com" 
+                        />
+                      </div>
+                      <div className="bill-form-full">
+                        <label className="bill-form-label">Address (optional)</label>
+                        <input 
+                          className="bill-form-input" 
+                          value={quickCust.address}
+                          onChange={(e) => setQuickCust({ ...quickCust, address: e.target.value })}
+                          placeholder="Street, City" 
+                        />
+                      </div>
+                      <div className="bill-form-full">
+                        <label className="bill-form-label">Notes (optional)</label>
+                        <textarea 
+                          className="bill-form-textarea" 
+                          value={quickCust.notes}
+                          onChange={(e) => setQuickCust({ ...quickCust, notes: e.target.value })}
+                          placeholder="Customer notes..." 
+                          rows="2"
+                        />
+                      </div>
+                    </div>
+                    <div className="d-flex gap-2 mt-3 justify-content-end">
+                      <button 
+                        type="button" 
+                        className="btn btn-sm" 
+                        style={{ background: "#0f3460", color: "#fff", fontWeight: "bold" }}
+                        onClick={handleQuickAddCustomer}
+                      >
+                        Save &amp; Select
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => {
+                          setShowQuickAddCustomer(false);
+                          setQuickCust({ name: "", mobile: "", email: "", address: "", notes: "" });
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* ── Customer Picker ── */}
+                    <div className="bill-form-full">
+                      <div className="d-flex align-items-center justify-content-between mb-1">
+                        <label className="bill-form-label mb-0">Select Customer</label>
+                        {!editTarget && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-link p-0 text-decoration-none"
+                            style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f3460' }}
+                            onClick={() => setShowQuickAddCustomer(true)}
+                          >
+                            ➕ Quick Add Customer
+                          </button>
+                        )}
+                      </div>
+                      <div className="cust-picker-wrap" ref={custRef}>
+                        <div className="cust-picker-input-row">
+                          <span className="cust-picker-icon">👤</span>
+                          <input
+                            className="cust-picker-input"
+                            placeholder="Search by name, mobile or email…"
+                            value={custSearch}
+                            onChange={(e) => {
+                              setCustSearch(e.target.value);
+                              setShowCustDropdown(true);
+                              if (!e.target.value) clearCustSelection();
+                            }}
+                            onFocus={() => setShowCustDropdown(true)}
+                            autoComplete="off"
+                          />
+                          {selectedCustId && (
+                            <button type="button" className="cust-picker-clear" onClick={clearCustSelection} title="Clear selection">×</button>
+                          )}
+                        </div>
+
+                        {/* Dropdown list */}
+                        {showCustDropdown && (
+                          <div className="cust-picker-dropdown">
+                            {filteredCusts.length === 0 ? (
+                              <div className="cust-picker-empty">No customers found</div>
+                            ) : (
+                              filteredCusts.map((c) => (
+                                <div
+                                  key={c._id}
+                                  className={`cust-picker-option ${selectedCustId === c._id ? "selected" : ""}`}
+                                  onMouseDown={() => selectCustomer(c)}
+                                >
+                                  <div className="cust-picker-opt-avatar">
+                                    {c.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                                  </div>
+                                  <div className="cust-picker-opt-info">
+                                    <div className="cust-picker-opt-name">{c.name}</div>
+                                    <div className="cust-picker-opt-sub">📞 {c.mobile}{c.email ? ` · ${c.email}` : ""}</div>
+                                  </div>
+                                  {selectedCustId === c._id && <span className="cust-picker-check">✓</span>}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected customer badge */}
                       {selectedCustId && (
-                        <button type="button" className="cust-picker-clear" onClick={clearCustSelection} title="Clear selection">×</button>
+                        <div className="cust-selected-badge">
+                          ✅ Customer auto-filled from profile
+                        </div>
                       )}
                     </div>
 
-                    {/* Dropdown list */}
-                    {showCustDropdown && (
-                      <div className="cust-picker-dropdown">
-                        {filteredCusts.length === 0 ? (
-                          <div className="cust-picker-empty">No customers found</div>
-                        ) : (
-                          filteredCusts.map((c) => (
-                            <div
-                              key={c._id}
-                              className={`cust-picker-option ${selectedCustId === c._id ? "selected" : ""}`}
-                              onMouseDown={() => selectCustomer(c)}
-                            >
-                              <div className="cust-picker-opt-avatar">
-                                {c.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
-                              </div>
-                              <div className="cust-picker-opt-info">
-                                <div className="cust-picker-opt-name">{c.name}</div>
-                                <div className="cust-picker-opt-sub">📞 {c.mobile}{c.email ? ` · ${c.email}` : ""}</div>
-                              </div>
-                              {selectedCustId === c._id && <span className="cust-picker-check">✓</span>}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Selected customer badge */}
-                  {selectedCustId && (
-                    <div className="cust-selected-badge">
-                      ✅ Customer auto-filled from profile
+                    {/* Customer Name */}
+                    <div>
+                      <label className="bill-form-label">Customer Name *</label>
+                      <input className="bill-form-input" value={form.customerName}
+                        onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                        placeholder="Full name" />
                     </div>
-                  )}
-                </div>
 
-                {/* Customer Name */}
-                <div>
-                  <label className="bill-form-label">Customer Name *</label>
-                  <input className="bill-form-input" value={form.customerName}
-                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                    placeholder="Full name" />
-                </div>
+                    {/* Phone */}
+                    <div>
+                      <label className="bill-form-label">Mobile Number</label>
+                      <input className="bill-form-input" value={form.customerPhone}
+                        onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                        placeholder="+91 98765 43210" />
+                    </div>
 
-                {/* Phone */}
-                <div>
-                  <label className="bill-form-label">Mobile Number</label>
-                  <input className="bill-form-input" value={form.customerPhone}
-                    onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-                    placeholder="+91 98765 43210" />
-                </div>
-
-                {/* Customer Email */}
-                <div className="bill-form-full">
-                  <label className="bill-form-label">Customer Email</label>
-                  <input type="email" className="bill-form-input" value={form.customerEmail}
-                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-                    placeholder="customer@example.com (optional if mobile provided)" />
-                </div>
+                    {/* Customer Email */}
+                    <div className="bill-form-full">
+                      <label className="bill-form-label">Customer Email</label>
+                      <input type="email" className="bill-form-input" value={form.customerEmail}
+                        onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+                        placeholder="customer@example.com (optional if mobile provided)" />
+                    </div>
+                  </>
+                )}
 
                 {/* Txn ID */}
                 <div>
@@ -826,6 +986,59 @@ const AdminBills = () => {
       {lightbox && (
         <div className="receipt-lightbox" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="Receipt" />
+        </div>
+      )}
+
+      {/* ── Quick Add Customer Modal (from Header) ──────────────────────── */}
+      {showQuickCustModal && (
+        <div className="bills-backdrop" onClick={() => setShowQuickCustModal(false)}>
+          <div className="bills-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="bills-modal-close" onClick={() => setShowQuickCustModal(false)}>×</button>
+            <h5>👤 Add Customer Profile</h5>
+
+            <form onSubmit={handleHeaderAddCustomer}>
+              <div className="bill-form-grid">
+                <div>
+                  <label className="bill-form-label">Full Name *</label>
+                  <input className="bill-form-input" value={quickCust.name}
+                    onChange={(e) => setQuickCust({ ...quickCust, name: e.target.value })}
+                    placeholder="e.g. Rajesh Kumar" required />
+                </div>
+
+                <div>
+                  <label className="bill-form-label">Mobile Number *</label>
+                  <input className="bill-form-input" value={quickCust.mobile}
+                    onChange={(e) => setQuickCust({ ...quickCust, mobile: e.target.value })}
+                    placeholder="+91 98765 43210" required />
+                </div>
+
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Email (optional)</label>
+                  <input type="email" className="bill-form-input" value={quickCust.email}
+                    onChange={(e) => setQuickCust({ ...quickCust, email: e.target.value })}
+                    placeholder="customer@example.com" />
+                </div>
+
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Address (optional)</label>
+                  <input className="bill-form-input" value={quickCust.address}
+                    onChange={(e) => setQuickCust({ ...quickCust, address: e.target.value })}
+                    placeholder="Street, City" />
+                </div>
+
+                <div className="bill-form-full">
+                  <label className="bill-form-label">Notes (optional)</label>
+                  <textarea className="bill-form-textarea" value={quickCust.notes}
+                    onChange={(e) => setQuickCust({ ...quickCust, notes: e.target.value })}
+                    placeholder="Any notes about this customer…" />
+                </div>
+              </div>
+
+              <button type="submit" className="bills-submit-btn" disabled={loading}>
+                {loading ? "Saving…" : "Add Customer"}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
