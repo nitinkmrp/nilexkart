@@ -56,6 +56,24 @@ const AdminBills = () => {
   const [showQuickAddCustomer, setShowQuickAddCustomer] = useState(false);
   const [quickCust, setQuickCust] = useState({ name: "", mobile: "", email: "", address: "", notes: "" });
   const [showQuickCustModal, setShowQuickCustModal] = useState(false);
+  // ── Invoice Creator state ─────────────────────────────
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({
+    invoiceNumber: "",
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    gstRate: 0,
+    otherCharges: 0,
+    notes: "",
+    txnDate: new Date().toISOString().slice(0, 16),
+    paymentMethod: "cash",
+    status: "paid",
+  });
+  const [invoiceItems, setInvoiceItems] = useState([
+    { description: "", qty: 1, rate: 0 }
+  ]);
+  const [printData, setPrintData] = useState(null);
   // ── Camera state ───────────────────────────────────
   const [showCamera,        setShowCamera]        = useState(false);
   const [camStream,         setCamStream]         = useState(null);
@@ -178,6 +196,156 @@ const AdminBills = () => {
     } catch (err) {
       toast.error("Error creating customer");
     }
+  };
+
+  const generateInvoiceNumber = () => {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    return `UGR${randomNum}`;
+  };
+
+  const openInvoiceModal = () => {
+    setInvoiceForm({
+      invoiceNumber: generateInvoiceNumber(),
+      customerName: "",
+      customerEmail: "",
+      customerPhone: "",
+      gstRate: 0,
+      otherCharges: 0,
+      notes: "Make all checks payable to USHA DEVI\nTotal due in 15 days.",
+      txnDate: new Date().toISOString().slice(0, 16),
+      paymentMethod: "cash",
+      status: "paid",
+    });
+    setInvoiceItems([{ description: "", qty: 1, rate: 0 }]);
+    setSelectedCustId("");
+    setCustSearch("");
+    setShowInvoiceModal(true);
+  };
+
+  const selectCustomerForInvoice = (c) => {
+    setSelectedCustId(c._id);
+    setCustSearch(c.name);
+    setShowCustDropdown(false);
+    setInvoiceForm((prev) => ({
+      ...prev,
+      customerName:  c.name   || "",
+      customerEmail: c.email  || "",
+      customerPhone: c.mobile || "",
+    }));
+  };
+
+  const addInvoiceItemRow = () => {
+    setInvoiceItems([...invoiceItems, { description: "", qty: 1, rate: 0 }]);
+  };
+
+  const removeInvoiceItemRow = (index) => {
+    const updated = [...invoiceItems];
+    updated.splice(index, 1);
+    setInvoiceItems(updated);
+  };
+
+  const handleInvoiceItemChange = (index, field, value) => {
+    const updated = [...invoiceItems];
+    updated[index][field] = value;
+    setInvoiceItems(updated);
+  };
+
+  const invoiceSubtotal = invoiceItems.reduce((acc, item) => {
+    const qty = parseFloat(item.qty) || 0;
+    const rate = parseFloat(item.rate) || 0;
+    return acc + (qty * rate);
+  }, 0);
+
+  const invoiceGstAmount = (invoiceSubtotal * (parseFloat(invoiceForm.gstRate) || 0)) / 100;
+  const invoiceTotal = invoiceSubtotal + invoiceGstAmount + (parseFloat(invoiceForm.otherCharges) || 0);
+
+  const handleSaveInvoice = async (shouldPrint = false) => {
+    if (!invoiceForm.customerName || !invoiceTotal) {
+      toast.error("Customer name and items are required");
+      return;
+    }
+    if (!invoiceForm.customerPhone && !invoiceForm.customerEmail) {
+      toast.error("Please provide customer mobile or email");
+      return;
+    }
+
+    const items = invoiceItems.map(item => ({
+      name: item.description || "Uncategorized Item",
+      qty: Number(item.qty),
+      price: Number(item.rate),
+    }));
+
+    const fd = new FormData();
+    fd.append("customerName", invoiceForm.customerName);
+    fd.append("customerEmail", invoiceForm.customerEmail || "");
+    fd.append("customerPhone", invoiceForm.customerPhone || "");
+    fd.append("txnId", invoiceForm.invoiceNumber);
+    fd.append("amount", invoiceTotal.toFixed(2));
+    fd.append("txnType", "receive");
+    fd.append("paymentMethod", invoiceForm.paymentMethod);
+    fd.append("status", invoiceForm.status);
+    fd.append("receivedBy", currentUser?.name || currentUser?.email || "Admin");
+    fd.append("notes", invoiceForm.notes || "");
+    fd.append("txnDate", invoiceForm.txnDate);
+    fd.append("items", JSON.stringify(items));
+
+    try {
+      const resultAction = await dispatch(createBillThunk(fd));
+      if (createBillThunk.fulfilled.match(resultAction)) {
+        toast.success("Invoice recorded successfully!");
+        setShowInvoiceModal(false);
+
+        if (shouldPrint) {
+          setPrintData({
+            invoiceNumber: invoiceForm.invoiceNumber,
+            customerName: invoiceForm.customerName,
+            customerEmail: invoiceForm.customerEmail,
+            customerPhone: invoiceForm.customerPhone,
+            gstRate: invoiceForm.gstRate,
+            otherCharges: invoiceForm.otherCharges,
+            notes: invoiceForm.notes,
+            txnDate: invoiceForm.txnDate,
+            items: items,
+            subtotal: invoiceSubtotal,
+            gstAmount: invoiceGstAmount,
+            total: invoiceTotal,
+          });
+          setTimeout(() => {
+            window.print();
+          }, 500);
+        }
+      } else {
+        toast.error(resultAction.payload || "Failed to record invoice");
+      }
+    } catch (err) {
+      toast.error("Error recording invoice");
+    }
+  };
+
+  const printExistingBill = (b) => {
+    const items = (b.items && b.items.length > 0)
+      ? b.items.map(it => ({ description: it.name || it.description, qty: it.qty, rate: it.price || it.rate }))
+      : [{ description: b.notes || "Transaction Amount", qty: 1, rate: b.amount }];
+
+    const subtotal = items.reduce((acc, item) => acc + (Number(item.qty || 0) * Number(item.rate || 0)), 0);
+
+    setPrintData({
+      invoiceNumber: b.txnId || `INV-${b._id?.slice(-6).toUpperCase() || "NEW"}`,
+      customerName: b.customerName,
+      customerEmail: b.customerEmail,
+      customerPhone: b.customerPhone,
+      gstRate: 0,
+      otherCharges: 0,
+      notes: b.notes,
+      txnDate: b.txnDate,
+      items: items,
+      subtotal: subtotal,
+      gstAmount: 0,
+      total: b.amount,
+    });
+    setTimeout(() => {
+      window.print();
+    }, 500);
   };
 
   // ── Camera helpers ─────────────────────────────────
@@ -388,6 +556,9 @@ const AdminBills = () => {
               setShowQuickCustModal(true);
             }}>
               + Add Customer
+            </button>
+            <button className="bills-add-btn" style={{ background: "#2ecc71" }} onClick={openInvoiceModal}>
+              + Create Invoice
             </button>
             <button className="bills-add-btn" onClick={openCreate}>
               + Record Transaction
@@ -602,6 +773,7 @@ const AdminBills = () => {
                     {/* Actions */}
                     <td>
                       <div className="d-flex gap-2">
+                        <button className="bill-edit-btn" style={{ background: "#e8f8f0", color: "#2d9a56" }} onClick={() => printExistingBill(b)}>Print</button>
                         <button className="bill-edit-btn" onClick={() => openEdit(b)}>Edit</button>
                         <button className="bill-del-btn"  onClick={() => setDeleteTarget(b)}>Del</button>
                       </div>
@@ -976,6 +1148,401 @@ const AdminBills = () => {
               <button className="btn btn-outline-secondary btn-sm" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button className="btn btn-danger btn-sm" onClick={handleDelete} disabled={loading}>
                 {loading ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Printable Invoice (hidden on screen, visible on print) ── */}
+      {printData && (
+        <div className="print-only-invoice">
+          <div className="invoice-print-header">
+            <h1 className="company-title">USHA GARMENTS</h1>
+            <h2 className="invoice-title">INVOICE</h2>
+          </div>
+
+          <div className="invoice-meta-row">
+            <div>
+              <p><strong>PAN</strong> - CXCPD3605B &nbsp;&nbsp;&nbsp;&nbsp; <strong>GSTN</strong> - 09CXCPD3605B1Z4</p>
+              <p>KASERU CHAURAHA RAMPUR NISFI</p>
+              <p>RAMPUR MARIAHU JAUNPUR U.P 222203</p>
+              <p><strong>MOB</strong> - 7007592343</p>
+            </div>
+            <div className="text-end">
+              <h3>INVOICE# {printData.invoiceNumber}</h3>
+            </div>
+          </div>
+
+          <hr className="invoice-divider" />
+
+          <div className="invoice-bill-to-row">
+            <div>
+              <h4 className="bill-to-title">BILL TO:</h4>
+              <p className="customer-name"><strong>{printData.customerName}</strong></p>
+              {printData.customerPhone && <p>📞 {printData.customerPhone}</p>}
+              {printData.customerEmail && <p>✉️ {printData.customerEmail}</p>}
+            </div>
+            <div className="text-end">
+              <p><strong>DATE:</strong> {new Date(printData.txnDate).toLocaleDateString("en-US", { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+          </div>
+
+          <table className="invoice-print-table">
+            <thead>
+              <tr>
+                <th>DESCRIPTION</th>
+                <th className="text-center">QUANTITY</th>
+                <th className="text-end">RATE</th>
+                <th className="text-end">AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printData.items.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.description || item.name || "—"}</td>
+                  <td className="text-center">{Number(item.qty).toFixed(2)}</td>
+                  <td className="text-end">Rs{Number(item.rate || item.price || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                  <td className="text-end">Rs{Number((item.qty || 0) * (item.rate || item.price || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="invoice-summary-section">
+            <div className="invoice-notes-block">
+              {printData.notes && (
+                <>
+                  <p><strong>Notes:</strong></p>
+                  <p>{printData.notes}</p>
+                </>
+              )}
+            </div>
+            <div className="invoice-totals-block">
+              <table className="totals-table">
+                <tbody>
+                  <tr>
+                    <td><strong>SUBTOTAL</strong></td>
+                    <td className="text-end">Rs{Number(printData.subtotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  {Number(printData.gstRate) > 0 && (
+                    <>
+                      <tr>
+                        <td><strong>GST RATE</strong></td>
+                        <td className="text-end">{Number(printData.gstRate).toFixed(2)}%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>TOTAL GST</strong></td>
+                        <td className="text-end">Rs{Number(printData.gstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    </>
+                  )}
+                  {Number(printData.otherCharges) > 0 && (
+                    <tr>
+                      <td><strong>OTHER</strong></td>
+                      <td className="text-end">Rs{Number(printData.otherCharges).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  )}
+                  <tr className="grand-total-row">
+                    <td><strong>TOTAL</strong></td>
+                    <td className="text-end"><strong>Rs{Number(printData.total).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="invoice-print-footer">
+            <p>Make all checks payable to <strong>USHA DEVI</strong></p>
+            <p>Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.</p>
+            <h4 className="thank-you-msg">THANK YOU FOR YOUR BUSINESS!</h4>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Invoice Modal ──────────────────────── */}
+      {showInvoiceModal && (
+        <div className="bills-backdrop" onClick={() => setShowInvoiceModal(false)}>
+          <div className="bills-modal" style={{ maxWidth: "800px" }} onClick={(e) => e.stopPropagation()}>
+            <button className="bills-modal-close" onClick={() => setShowInvoiceModal(false)}>×</button>
+            <h5 className="mb-3">📄 Create Invoice</h5>
+
+            <div className="bill-form-grid">
+              {/* Invoice Number & Date */}
+              <div>
+                <label className="bill-form-label">Invoice Number</label>
+                <input 
+                  className="bill-form-input" 
+                  value={invoiceForm.invoiceNumber}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
+                  placeholder="e.g. UGR0568" 
+                />
+              </div>
+              <div>
+                <label className="bill-form-label">Date &amp; Time</label>
+                <input 
+                  type="datetime-local" 
+                  className="bill-form-input" 
+                  value={invoiceForm.txnDate}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, txnDate: e.target.value })} 
+                />
+              </div>
+
+              {/* Customer Selection Row */}
+              <div className="bill-form-full">
+                <div className="d-flex align-items-center justify-content-between mb-1">
+                  <label className="bill-form-label mb-0">Select Customer Profile</label>
+                </div>
+                <div className="cust-picker-wrap" ref={custRef}>
+                  <div className="cust-picker-input-row">
+                    <span className="cust-picker-icon">👤</span>
+                    <input
+                      className="cust-picker-input"
+                      placeholder="Search by name, mobile or email…"
+                      value={custSearch}
+                      onChange={(e) => {
+                        setCustSearch(e.target.value);
+                        setShowCustDropdown(true);
+                        if (!e.target.value) {
+                          setSelectedCustId("");
+                          setInvoiceForm(prev => ({ ...prev, customerName: "", customerEmail: "", customerPhone: "" }));
+                        }
+                      }}
+                      onFocus={() => setShowCustDropdown(true)}
+                      autoComplete="off"
+                    />
+                    {selectedCustId && (
+                      <button type="button" className="cust-picker-clear" onClick={() => {
+                        setSelectedCustId("");
+                        setCustSearch("");
+                        setInvoiceForm(prev => ({ ...prev, customerName: "", customerEmail: "", customerPhone: "" }));
+                      }} title="Clear selection">×</button>
+                    )}
+                  </div>
+
+                  {/* Dropdown list */}
+                  {showCustDropdown && (
+                    <div className="cust-picker-dropdown">
+                      {filteredCusts.length === 0 ? (
+                        <div className="cust-picker-empty">No customers found</div>
+                      ) : (
+                        filteredCusts.map((c) => (
+                          <div
+                            key={c._id}
+                            className={`cust-picker-option ${selectedCustId === c._id ? "selected" : ""}`}
+                            onMouseDown={() => selectCustomerForInvoice(c)}
+                          >
+                            <div className="cust-picker-opt-avatar">
+                              {c.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                            </div>
+                            <div className="cust-picker-opt-info">
+                              <div className="cust-picker-opt-name">{c.name}</div>
+                              <div className="cust-picker-opt-sub">📞 {c.mobile}{c.email ? ` · ${c.email}` : ""}</div>
+                            </div>
+                            {selectedCustId === c._id && <span className="cust-picker-check">✓</span>}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Customer Manual Details */}
+              <div>
+                <label className="bill-form-label">Customer Name *</label>
+                <input 
+                  className="bill-form-input" 
+                  value={invoiceForm.customerName}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, customerName: e.target.value })}
+                  placeholder="Full name" 
+                />
+              </div>
+              <div>
+                <label className="bill-form-label">Mobile Number</label>
+                <input 
+                  className="bill-form-input" 
+                  value={invoiceForm.customerPhone}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, customerPhone: e.target.value })}
+                  placeholder="+91 98765 43210" 
+                />
+              </div>
+              <div className="bill-form-full">
+                <label className="bill-form-label">Customer Email</label>
+                <input 
+                  type="email" 
+                  className="bill-form-input" 
+                  value={invoiceForm.customerEmail}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, customerEmail: e.target.value })}
+                  placeholder="customer@example.com" 
+                />
+              </div>
+
+              {/* Itemized Columns */}
+              <div className="bill-form-full mt-3">
+                <label className="bill-form-label">Items / Product Description</label>
+                <div className="table-responsive">
+                  <table className="table table-bordered align-middle" style={{ minWidth: "600px", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
+                        <th style={{ width: "45%" }}>DESCRIPTION</th>
+                        <th style={{ width: "15%" }} className="text-center">QUANTITY</th>
+                        <th style={{ width: "20%" }} className="text-end">RATE (₹)</th>
+                        <th style={{ width: "20%" }} className="text-end">AMOUNT (₹)</th>
+                        <th style={{ width: "10%" }} className="text-center">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoiceItems.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <input 
+                              className="form-control form-control-sm"
+                              value={item.description}
+                              onChange={(e) => handleInvoiceItemChange(idx, "description", e.target.value)}
+                              placeholder="straight line checking"
+                              style={{ fontSize: "13px", padding: "6px" }}
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number"
+                              min="0.01"
+                              step="any"
+                              className="form-control form-control-sm text-center"
+                              value={item.qty}
+                              onChange={(e) => handleInvoiceItemChange(idx, "qty", e.target.value)}
+                              placeholder="10.00"
+                              style={{ fontSize: "13px", padding: "6px" }}
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number"
+                              min="0"
+                              step="any"
+                              className="form-control form-control-sm text-end"
+                              value={item.rate}
+                              onChange={(e) => handleInvoiceItemChange(idx, "rate", e.target.value)}
+                              placeholder="100.00"
+                              style={{ fontSize: "13px", padding: "6px" }}
+                            />
+                          </td>
+                          <td className="text-end font-weight-bold" style={{ verticalAlign: "middle" }}>
+                            ₹{Number((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="text-center">
+                            <button 
+                              type="button" 
+                              className="btn btn-sm btn-outline-danger" 
+                              onClick={() => removeInvoiceItemRow(idx)}
+                              disabled={invoiceItems.length <= 1}
+                              style={{ padding: "2px 8px", fontSize: "12px" }}
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-secondary mt-1" 
+                  onClick={addInvoiceItemRow}
+                  style={{ fontWeight: "600", fontSize: "12px", background: "#533483", border: "none" }}
+                >
+                  ➕ Add More Item Column
+                </button>
+              </div>
+
+              {/* Summary calculations */}
+              <div className="bill-form-full mt-3 p-3" style={{ background: "#f8f9fa", borderRadius: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <div className="mb-2">
+                      <label className="bill-form-label">GST Rate (%)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        step="any"
+                        className="bill-form-input"
+                        value={invoiceForm.gstRate}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, gstRate: e.target.value })}
+                        placeholder="0.00" 
+                      />
+                    </div>
+                    <div>
+                      <label className="bill-form-label">Other / Delivery Charges (₹)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        step="any"
+                        className="bill-form-input"
+                        value={invoiceForm.otherCharges}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, otherCharges: e.target.value })}
+                        placeholder="0.00" 
+                      />
+                    </div>
+                  </div>
+                  <div className="d-flex flex-column justify-content-end align-items-end text-end" style={{ fontSize: "14px" }}>
+                    <div className="mb-1">SUBTOTAL: <strong>₹{invoiceSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>
+                    {invoiceGstAmount > 0 && <div className="mb-1">GST ({invoiceForm.gstRate}%): <strong>₹{invoiceGstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>}
+                    {parseFloat(invoiceForm.otherCharges) > 0 && <div className="mb-1">OTHER CHARGES: <strong>₹{parseFloat(invoiceForm.otherCharges).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong></div>}
+                    <div className="mt-2 pt-2 border-top" style={{ fontSize: "18px", color: "#0f3460" }}>
+                      TOTAL DUE: <strong>₹{invoiceTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment details */}
+              <div>
+                <label className="bill-form-label">Payment Method</label>
+                <select className="bill-form-select" value={invoiceForm.paymentMethod}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, paymentMethod: e.target.value })}>
+                  <option value="cash">💵 Cash (In-Store)</option>
+                  <option value="online">💳 Online (Razorpay)</option>
+                  <option value="upi">📱 UPI</option>
+                  <option value="card">🏧 Card</option>
+                </select>
+              </div>
+              <div>
+                <label className="bill-form-label">Payment Status</label>
+                <select className="bill-form-select" value={invoiceForm.status}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, status: e.target.value })}>
+                  <option value="paid">✅ Paid</option>
+                  <option value="pending">⏳ Pending</option>
+                  <option value="cancelled">❌ Cancelled</option>
+                </select>
+              </div>
+              <div className="bill-form-full">
+                <label className="bill-form-label">Invoice Notes</label>
+                <textarea className="bill-form-textarea" value={invoiceForm.notes}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
+                  placeholder="Make all checks payable to USHA DEVI..." />
+              </div>
+            </div>
+
+            <div className="d-flex gap-3 mt-4">
+              <button 
+                type="button" 
+                className="bills-submit-btn" 
+                style={{ background: "#0f3460" }} 
+                onClick={() => handleSaveInvoice(false)}
+                disabled={loading}
+              >
+                Save Invoice
+              </button>
+              <button 
+                type="button" 
+                className="bills-submit-btn" 
+                style={{ background: "linear-gradient(135deg, #2ecc71, #27ae60)" }} 
+                onClick={() => handleSaveInvoice(true)}
+                disabled={loading}
+              >
+                💾 Save &amp; Print Invoice
               </button>
             </div>
           </div>
