@@ -16,7 +16,7 @@ const EMPTY_FORM = {
   txnId:         "",
   amount:        "",
   txnType:       "receive",
-  paymentMethod: "online",
+  paymentMethod: "cash",
   status:        "paid",
   receivedBy:    "",
   notes:         "",
@@ -69,6 +69,7 @@ const AdminBills = () => {
     txnDate: new Date().toISOString().slice(0, 16),
     paymentMethod: "cash",
     status: "paid",
+    txnType: "receive",
   });
   const [invoiceItems, setInvoiceItems] = useState([
     { description: "", qty: 1, rate: 0 }
@@ -199,8 +200,25 @@ const AdminBills = () => {
   };
 
   const generateInvoiceNumber = () => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    return `UGR${randomNum}`;
+    let maxNum = 0;
+    let foundAny = false;
+    if (bills && bills.length > 0) {
+      bills.forEach((b) => {
+        if (b.txnId && b.txnId.startsWith("UGR")) {
+          const numPart = b.txnId.slice(3); // get numeric part after "UGR"
+          const parsed = parseInt(numPart, 10);
+          if (!isNaN(parsed)) {
+            if (!foundAny || parsed > maxNum) {
+              maxNum = parsed;
+              foundAny = true;
+            }
+          }
+        }
+      });
+    }
+    const nextNum = foundAny ? maxNum + 1 : 1000;
+    const padded = String(nextNum).padStart(4, "0");
+    return `UGR${padded}`;
   };
 
   const openInvoiceModal = () => {
@@ -215,6 +233,7 @@ const AdminBills = () => {
       txnDate: new Date().toISOString().slice(0, 16),
       paymentMethod: "cash",
       status: "paid",
+      txnType: "receive",
     });
     setInvoiceItems([{ description: "", qty: 1, rate: 0 }]);
     setSelectedCustId("");
@@ -281,7 +300,7 @@ const AdminBills = () => {
     fd.append("customerPhone", invoiceForm.customerPhone || "");
     fd.append("txnId", invoiceForm.invoiceNumber);
     fd.append("amount", invoiceTotal.toFixed(2));
-    fd.append("txnType", "receive");
+    fd.append("txnType", invoiceForm.txnType || "receive");
     fd.append("paymentMethod", invoiceForm.paymentMethod);
     fd.append("status", invoiceForm.status);
     fd.append("receivedBy", currentUser?.name || currentUser?.email || "Admin");
@@ -1026,10 +1045,8 @@ const AdminBills = () => {
                   <label className="bill-form-label">Payment Method</label>
                   <select className="bill-form-select" value={form.paymentMethod}
                     onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
-                    <option value="online">💳 Online (Razorpay)</option>
                     <option value="cash">💵 Cash (In-Store)</option>
                     <option value="upi">📱 UPI</option>
-                    <option value="card">🏧 Card</option>
                   </select>
                 </div>
 
@@ -1040,8 +1057,6 @@ const AdminBills = () => {
                     onChange={(e) => setForm({ ...form, status: e.target.value })}>
                     <option value="paid">✅ Paid</option>
                     <option value="pending">⏳ Pending</option>
-                    <option value="authorized">🔵 Authorized (Cash)</option>
-                    <option value="cancelled">❌ Cancelled</option>
                   </select>
                 </div>
 
@@ -1503,9 +1518,7 @@ const AdminBills = () => {
                 <select className="bill-form-select" value={invoiceForm.paymentMethod}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, paymentMethod: e.target.value })}>
                   <option value="cash">💵 Cash (In-Store)</option>
-                  <option value="online">💳 Online (Razorpay)</option>
                   <option value="upi">📱 UPI</option>
-                  <option value="card">🏧 Card</option>
                 </select>
               </div>
               <div>
@@ -1514,7 +1527,14 @@ const AdminBills = () => {
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, status: e.target.value })}>
                   <option value="paid">✅ Paid</option>
                   <option value="pending">⏳ Pending</option>
-                  <option value="cancelled">❌ Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="bill-form-label">Payment Type (In / Out)</label>
+                <select className="bill-form-select" value={invoiceForm.txnType}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, txnType: e.target.value })}>
+                  <option value="receive">➕ In (Receive Payment)</option>
+                  <option value="give">➖ Out (Give Payment / Due)</option>
                 </select>
               </div>
               <div className="bill-form-full">

@@ -16,7 +16,7 @@ const billSchema = new mongoose.Schema(
     // Transaction details
     txnId:         { type: String, default: '' },          // Razorpay / manual ref
     amount:        { type: Number, required: true, min: 0 },
-    paymentMethod: { type: String, enum: ['online', 'cash', 'upi', 'card'], default: 'online' },
+    paymentMethod: { type: String, enum: ['online', 'cash', 'upi', 'card'], default: 'cash' },
     status:        { type: String, enum: ['paid', 'pending', 'authorized', 'cancelled'], default: 'paid' },
 
     // Items snapshot (array of { name, qty, price })
@@ -102,7 +102,7 @@ router.post('/', roleGuard(['admin', 'editor', 'support']), upload.single('recei
       customerName, customerEmail: customerEmail || '', customerPhone,
       txnId, amount: Number(amount),
       txnType: txnType || 'receive',
-      paymentMethod: paymentMethod || 'online',
+      paymentMethod: paymentMethod || 'cash',
       status:        status || 'paid',
       items:         parsedItems,
       receivedBy,    notes,
