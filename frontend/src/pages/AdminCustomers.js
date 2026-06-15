@@ -228,7 +228,9 @@ const AdminCustomers = () => {
                 {/* Stats bar */}
                 <div className="cust-card-stats">
                   <div className="cust-mini-stat">
-                    <span className="cust-mini-val">₹{(c.totalSpend || 0).toLocaleString("en-IN")}</span>
+                    <span className="cust-mini-val">
+                      {(c.totalSpend || 0) < 0 ? "-" : ""}₹{Math.abs(c.totalSpend || 0).toLocaleString("en-IN")}
+                    </span>
                     <span className="cust-mini-lbl">Total Spend</span>
                   </div>
                   <div className="cust-mini-stat">
@@ -359,8 +361,8 @@ const AdminCustomers = () => {
                     )}
                   </div>
                   <div className="tl-summary-chips">
-                    <div className="tl-chip green">
-                      ₹{(timeline.totalSpend || 0).toLocaleString("en-IN")} <span>Spent</span>
+                    <div className={`tl-chip ${(timeline.totalSpend || 0) < 0 ? "red" : "green"}`}>
+                      {(timeline.totalSpend || 0) < 0 ? "-" : ""}₹{Math.abs(timeline.totalSpend || 0).toLocaleString("en-IN")} <span>Spent</span>
                     </div>
                     <div className="tl-chip blue">
                       {timeline.bills?.length || 0} <span>Txns</span>

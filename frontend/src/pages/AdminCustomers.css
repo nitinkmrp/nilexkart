@@ -424,6 +424,7 @@
 }
 .tl-chip span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 .tl-chip.green  { background: #d1fae5; color: #065f46; }
+.tl-chip.red    { background: #fee2e2; color: #991b1b; }
 .tl-chip.blue   { background: #dbeafe; color: #1d4ed8; }
 
 .tl-section-title {
