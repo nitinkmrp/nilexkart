@@ -187,8 +187,8 @@ const AdminStock = () => {
     }
   };
 
-  const handleApplyPricingSuggestion = async (productId, discount) => {
-    if (!productId || !discount) return;
+  const handleApplyPricingSuggestion = async (productId, discountPercent) => {
+    if (!productId || discountPercent === undefined || discountPercent === null) return;
     setApplyingSuggestionId(productId);
     try {
       const headers = { "Content-Type": "application/json" };
@@ -198,13 +198,18 @@ const AdminStock = () => {
       const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ discount: Number(discount) }),
+        body: JSON.stringify({
+          discount: Number(discountPercent),
+          reason: "AI Pricing Optimization",
+          updatedBy: currentUser?.name || "AI Advisor",
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`🏷️ Applied ${discount}% clearance discount!`);
+        toast.success(`🏷️ Applied ${discountPercent}% clearance discount!`);
         fetchProducts();
-        runAiAudit();
+        if (typeof runAiAudit === "function") runAiAudit();
+        if (typeof fetchInsights === "function") fetchInsights();
       } else {
         toast.error(data.message || "Failed to update discount");
       }
@@ -417,44 +422,6 @@ const AdminStock = () => {
       if (successCount === 0 && failCount === 0) toast.error("No matching products found in file.");
     } catch { toast.error("Failed to read CSV file"); }
     finally { setImporting(false); setShowBulkModal(false); setImportFile(null); }
-  };
-
-
-
-  // Applying AI dynamic pricing advice
-  const handleApplyPricingSuggestion = async (productId, discountPercent) => {
-    setApplyingSuggestionId(productId);
-    try {
-      const token = localStorage.getItem("jwtToken");
-      const headers = { 
-        "Content-Type": "application/json"
-      };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      // Call Product PUT /api/products/:id to adjust discount
-      const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({
-          discount: discountPercent,
-          reason: "AI Pricing Optimization",
-          updatedBy: currentUser?.name || "AI Advisor"
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Applied AI recommendation: ${discountPercent}% discount!`);
-        fetchProducts();
-        fetchInsights();
-      } else {
-        toast.error(data.message || "Failed to apply AI suggestion");
-      }
-    } catch {
-      toast.error("Error communicating with servers");
-    } finally {
-      setApplyingSuggestionId(null);
-    }
   };
 
   // ── CSV Export (size-aware) ──────────────────────────────────────────────
