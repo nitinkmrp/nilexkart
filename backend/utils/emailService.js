@@ -16,7 +16,7 @@ const getResendClient = () => {
 const formatFromAddress = (rawFrom) => {
   const appName = (process.env.APP_NAME || 'NilexKart').replace(/["'<>]/g, '').trim();
   if (!rawFrom || !rawFrom.trim()) {
-    return `${appName} <onboarding@resend.dev>`;
+    return `${appName} <customercare@nilex.in>`;
   }
   // Strip outer quotes if any
   let cleaned = rawFrom.trim().replace(/^["']+|["']+$/g, '');
@@ -25,6 +25,7 @@ const formatFromAddress = (rawFrom) => {
   // If it's just an email without brackets and name, it's valid as is
   return cleaned;
 };
+
 
 export const sendEmail = async ({ to, subject, html, text }) => {
   const fromEmail = formatFromAddress(process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM);
