@@ -38,7 +38,7 @@ async function adminFetch(path, opts = {}) {
   return json;
 }
 
-// ── Public routes ──────────────────────────────────────
+// Public & Auth routes
 export const getUserByEmail = (email)  => apiFetch(`/api/users/${encodeURIComponent(email)}`);
 
 // ── Admin-only routes ──────────────────────────────────
@@ -47,6 +47,7 @@ export const createUser    = (body)        => adminFetch("/api/users", { method:
 export const updateUser    = (email, body) => adminFetch(`/api/users/${encodeURIComponent(email)}`, { method: "PUT", body: JSON.stringify(body) });
 export const deleteUser    = (email)       => adminFetch(`/api/users/${encodeURIComponent(email)}`, { method: "DELETE" });
 
+// ── Authentication API ─────────────────────────────────
 // Login — hits the real backend JWT auth endpoint
 export const loginUserApi = async (email, password) => {
   const data = await apiFetch("/api/auth/login", {
@@ -60,3 +61,48 @@ export const loginUserApi = async (email, password) => {
   
   return data.data; // return the user object
 };
+
+// Request Registration OTP
+export const requestRegisterOtpApi = async (email, password) => {
+  return await apiFetch("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+};
+
+// Verify Registration OTP & create account
+export const verifyRegisterOtpApi = async (email, password, otp, name) => {
+  const data = await apiFetch("/api/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, password, otp, name })
+  });
+  if (data.token) {
+    localStorage.setItem("jwtToken", data.token);
+  }
+  return data;
+};
+
+// Resend OTP (for registration or forgot_password)
+export const resendOtpApi = async (email, purpose = "register") => {
+  return await apiFetch("/api/auth/resend-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, purpose })
+  });
+};
+
+// Forgot Password - request reset code
+export const forgotPasswordApi = async (email) => {
+  return await apiFetch("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+};
+
+// Reset Password - verify code and set new password
+export const resetPasswordApi = async (email, otp, newPassword) => {
+  return await apiFetch("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, newPassword })
+  });
+};
+
