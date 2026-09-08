@@ -37,17 +37,25 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
       if (response.error) {
         console.error('[Resend Error]:', response.error);
-        throw new Error(response.error.message || 'Resend email delivery failed');
+        if (response.error.message?.includes('testing emails to your own email address')) {
+          console.warn('\n⚠️ [Resend Sandbox Limitation]:');
+          console.warn('   Using "onboarding@resend.dev" only allows sending to your registered account email (nitinkmrp@gmail.com).');
+          console.warn('   To send to any recipient: Verify your domain at https://resend.com/domains and set RESEND_FROM_EMAIL="NilexKart <auth@yourdomain.com>"\n');
+        }
+        if (!process.env.SMTP_USER) {
+          throw new Error(response.error.message || 'Resend email delivery failed');
+        }
+      } else {
+        console.log(`✉️ [Resend] Email sent successfully to ${to} (ID: ${response.data?.id})`);
+        return response.data;
       }
-
-      console.log(`✉️ [Resend] Email sent successfully to ${to} (ID: ${response.data?.id})`);
-      return response.data;
     } catch (err) {
       console.error('[Resend Exception]:', err.message);
       // Fallback to Nodemailer if configured
       if (!process.env.SMTP_USER) throw err;
     }
   }
+
 
   // 2. Fallback Provider: Nodemailer (SMTP)
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
