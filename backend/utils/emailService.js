@@ -12,16 +12,23 @@ const getResendClient = () => {
   return resendClient;
 };
 
-/**
- * Universal email sender:
- * 1. Uses Resend if RESEND_API_KEY is configured (Recommended)
- * 2. Falls back to Nodemailer if SMTP_USER is configured
- * 3. Falls back to console simulation in local dev mode
- */
+// Helper to format 'from' field strictly for Resend: "Name <email@domain.com>" or "email@domain.com"
+const formatFromAddress = (rawFrom) => {
+  const appName = (process.env.APP_NAME || 'NilexKart').replace(/["'<>]/g, '').trim();
+  if (!rawFrom || !rawFrom.trim()) {
+    return `${appName} <onboarding@resend.dev>`;
+  }
+  // Strip outer quotes if any
+  let cleaned = rawFrom.trim().replace(/^["']+|["']+$/g, '');
+  // Remove quotes from display name if formatted like "Name" <email>
+  cleaned = cleaned.replace(/^"([^"]+)"\s*(<[^>]+>)$/, '$1 $2');
+  // If it's just an email without brackets and name, it's valid as is
+  return cleaned;
+};
+
 export const sendEmail = async ({ to, subject, html, text }) => {
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL ||
-    `"${process.env.APP_NAME || 'NilexKart'}" <${process.env.SMTP_USER || 'onboarding@resend.dev'}>`;
+  const fromEmail = formatFromAddress(process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM);
+
 
   // 1. Primary Provider: Resend (Official SDK)
   const resend = getResendClient();
