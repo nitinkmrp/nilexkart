@@ -142,18 +142,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL,         // Frontend URL — set in Render dashboard env vars
 ].filter(Boolean);
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (Postman, curl, server-to-server)
-    if (!origin) return callback(null, true);
-    // Allow any *.onrender.com subdomain (covers all Render-hosted frontends)
-    if (origin.endsWith('.onrender.com')) return callback(null, true);
-    // Allow explicitly whitelisted origins
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
-}));
+app.use(cors());
 
 app.use(express.json());
 
