@@ -53,6 +53,16 @@ const AdminDeliveries = () => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useState(null);
 
+  // Order Notification Recipients States
+  const [notificationEmails, setNotificationEmails] = useState([]);
+  const [newEmailInput, setNewEmailInput] = useState("");
+  const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
+  const [notifyCustomer, setNotifyCustomer] = useState(true);
+  const [loadingNotificationSettings, setLoadingNotificationSettings] = useState(false);
+  const [savingNotificationSettings, setSavingNotificationSettings] = useState(false);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [isNotifyCardExpanded, setIsNotifyCardExpanded] = useState(true);
+
   // Redirect if not logged in
   useEffect(() => {
     if (!currentUser) {
@@ -74,11 +84,101 @@ const AdminDeliveries = () => {
     }
   };
 
+  const fetchNotificationSettings = async () => {
+    setLoadingNotificationSettings(true);
+    try {
+      const data = await adminFetch("/api/payment/delivery-notifications");
+      if (data.success && data.settings) {
+        setNotificationEmails(data.settings.notificationEmails || []);
+        setEmailAlertsEnabled(data.settings.emailAlertsEnabled !== false);
+        setNotifyCustomer(data.settings.notifyCustomer !== false);
+      }
+    } catch (err) {
+      console.warn("Could not load delivery notification settings:", err.message);
+    } finally {
+      setLoadingNotificationSettings(false);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
       fetchAllOrders();
+      fetchNotificationSettings();
     }
   }, [currentUser]);
+
+  const handleAddEmail = (e) => {
+    if (e) e.preventDefault();
+    const emailToAdd = newEmailInput.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailToAdd) return;
+    if (!emailRegex.test(emailToAdd)) {
+      toast.error("Please enter a valid email address (e.g. logistics@nilex.in)");
+      return;
+    }
+    if (notificationEmails.includes(emailToAdd)) {
+      toast.warning("This email address is already added to the list.");
+      return;
+    }
+    setNotificationEmails([...notificationEmails, emailToAdd]);
+    setNewEmailInput("");
+    toast.info(`Added ${emailToAdd}. Click 'Save Settings' to apply.`);
+  };
+
+  const handleRemoveEmail = (emailToRemove) => {
+    setNotificationEmails(notificationEmails.filter((e) => e !== emailToRemove));
+  };
+
+  const handleSaveNotificationSettings = async () => {
+    setSavingNotificationSettings(true);
+    try {
+      const data = await adminFetch("/api/payment/delivery-notifications", {
+        method: "PUT",
+        body: JSON.stringify({
+          notificationEmails,
+          emailAlertsEnabled,
+          notifyCustomer,
+        }),
+      });
+      if (data.success) {
+        toast.success("✅ Delivery order notification settings saved successfully!");
+        setNotificationEmails(data.settings.notificationEmails || []);
+        setEmailAlertsEnabled(data.settings.emailAlertsEnabled);
+        setNotifyCustomer(data.settings.notifyCustomer);
+      } else {
+        toast.error(data.message || "Failed to save settings");
+      }
+    } catch (err) {
+      toast.error(err.message || "Error saving delivery notification settings");
+    } finally {
+      setSavingNotificationSettings(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (notificationEmails.length === 0 && !newEmailInput.trim()) {
+      toast.error("Please add at least one recipient email address first.");
+      return;
+    }
+    setSendingTestEmail(true);
+    try {
+      const data = await adminFetch("/api/payment/delivery-notifications/test-email", {
+        method: "POST",
+        body: JSON.stringify({
+          testEmail: newEmailInput.trim() || undefined,
+        }),
+      });
+      if (data.success) {
+        toast.success(data.message || "✉️ Test order alert email sent!");
+      } else {
+        toast.error(data.message || "Failed to send test email");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to send test alert email");
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
 
   // Generate a random tracking ID based on selected carrier
   const handleAutoGenerateTracking = () => {
@@ -379,6 +479,155 @@ const AdminDeliveries = () => {
               <div className="ad-kpi-lbl">Completed Hand-offs</div>
             </div>
           </div>
+        </div>
+
+        {/* ── 📧 Real-time Order Notification Email Recipients Card ── */}
+        <div className="ad-email-notify-card mb-4">
+          <div className="ad-notify-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <div className="ad-notify-icon">📬</div>
+              <div>
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <h5 className="ad-notify-title mb-0">Order Notification Email Recipients</h5>
+                  <span className={`ad-notify-status-badge ${emailAlertsEnabled && notificationEmails.length > 0 ? "active" : "inactive"}`}>
+                    {emailAlertsEnabled && notificationEmails.length > 0
+                      ? `🟢 Live Alert Active (${notificationEmails.length} recipient${notificationEmails.length > 1 ? "s" : ""})`
+                      : emailAlertsEnabled
+                      ? "⚠️ No recipients added"
+                      : "⚪ Alerts Paused"}
+                  </span>
+                </div>
+                <p className="ad-notify-sub mb-0">
+                  When a customer places an order, instant notification emails with full order, delivery destination, and product breakdown are sent to these addresses.
+                </p>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="ad-notify-toggle-btn"
+                onClick={() => setIsNotifyCardExpanded(!isNotifyCardExpanded)}
+                title={isNotifyCardExpanded ? "Collapse section" : "Expand section"}
+              >
+                {isNotifyCardExpanded ? "🔼 Hide" : "🔽 Configure Emails"}
+              </button>
+            </div>
+          </div>
+
+          {isNotifyCardExpanded && (
+            <div className="ad-notify-body mt-3 pt-3 border-top">
+              {loadingNotificationSettings ? (
+                <div className="text-center py-3">
+                  <div className="spinner-border spinner-border-sm text-primary" role="status" />
+                  <span className="ms-2 text-muted">Loading recipient configuration...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Email Input Form */}
+                  <form onSubmit={handleAddEmail} className="ad-notify-input-group mb-3">
+                    <div className="input-group">
+                      <span className="input-group-text bg-white border-end-0">✉️</span>
+                      <input
+                        type="email"
+                        className="form-control border-start-0 ad-notify-email-input"
+                        placeholder="Enter email ID to receive mail of each order (e.g. delivery@nilex.in)"
+                        value={newEmailInput}
+                        onChange={(e) => setNewEmailInput(e.target.value)}
+                      />
+                      <button type="submit" className="btn btn-primary ad-notify-add-btn">
+                        ➕ Add Email ID
+                      </button>
+                    </div>
+                    <small className="text-muted mt-1 d-block">
+                      💡 Tip: Add one or more email IDs (e.g. logistics team, warehouse staff, store managers).
+                    </small>
+                  </form>
+
+                  {/* Recipient Email Badges */}
+                  <div className="ad-recipient-badges mb-3">
+                    <div className="ad-recipient-label mb-2">
+                      <strong>Configured Recipients ({notificationEmails.length}):</strong>
+                    </div>
+                    {notificationEmails.length === 0 ? (
+                      <div className="ad-empty-recipients alert alert-light border py-2 px-3 mb-0">
+                        <span>ℹ️ No email addresses configured yet. Add an email ID above to begin receiving notifications for every customer order.</span>
+                      </div>
+                    ) : (
+                      <div className="d-flex flex-wrap gap-2">
+                        {notificationEmails.map((email) => (
+                          <span key={email} className="ad-recipient-chip">
+                            <span className="chip-icon">✉️</span>
+                            <span className="chip-email">{email}</span>
+                            <button
+                              type="button"
+                              className="chip-remove-btn"
+                              onClick={() => handleRemoveEmail(email)}
+                              title={`Remove ${email}`}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Toggles and Action Buttons */}
+                  <div className="ad-notify-footer d-flex justify-content-between align-items-center flex-wrap gap-3 pt-2 border-top">
+                    <div className="d-flex align-items-center gap-4 flex-wrap">
+                      <div className="form-check form-switch mb-0">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="toggleAlerts"
+                          checked={emailAlertsEnabled}
+                          onChange={(e) => setEmailAlertsEnabled(e.target.checked)}
+                        />
+                        <label className="form-check-label fw-semibold" htmlFor="toggleAlerts">
+                          Enable Order Email Notifications
+                        </label>
+                      </div>
+
+                      <div className="form-check form-switch mb-0">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="toggleCustomerConfirmation"
+                          checked={notifyCustomer}
+                          onChange={(e) => setNotifyCustomer(e.target.checked)}
+                        />
+                        <label className="form-check-label text-muted" htmlFor="toggleCustomerConfirmation">
+                          Send confirmation copy to customer
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary ad-test-email-btn"
+                        onClick={handleSendTestEmail}
+                        disabled={sendingTestEmail || (notificationEmails.length === 0 && !newEmailInput.trim())}
+                        title="Send a sample order notification to verify delivery"
+                      >
+                        {sendingTestEmail ? "Sending..." : "🧪 Send Test Alert Email"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary ad-save-notify-btn"
+                        onClick={handleSaveNotificationSettings}
+                        disabled={savingNotificationSettings}
+                      >
+                        {savingNotificationSettings ? "Saving..." : "💾 Save Settings"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── 🎙️ Voice & Text "Ask Delivery AI Operations Copilot" ── */}

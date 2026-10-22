@@ -4,8 +4,48 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import roleGuard from '../middleware/roleGuard.js';
 import { generateAICopy, cleanCopyText } from './ai.routes.js';
+import DeliverySettings from '../models/DeliverySettings.js';
+import {
+  sendOrderNotificationEmail,
+  sendOrderConfirmationCustomerEmail,
+} from '../utils/emailService.js';
 
 const router = express.Router();
+
+// ── Helper to dispatch order notification emails to admin delivery recipients and customer ──
+const dispatchOrderNotifications = async (order, orderType = 'Online Order') => {
+  try {
+    const settings = await DeliverySettings.findOne({ key: 'global_delivery_settings' });
+    const emailAlertsEnabled = settings ? settings.emailAlertsEnabled !== false : true;
+    const recipients = (settings?.notificationEmails || []).filter(
+      (e) => e && typeof e === 'string' && e.includes('@')
+    );
+
+    if (emailAlertsEnabled && recipients.length > 0) {
+      console.log(
+        `[Order Dispatch] Sending order alert email to ${recipients.join(', ')} for Order #${order.razorpayOrderId}`
+      );
+      await sendOrderNotificationEmail({
+        order,
+        recipients,
+        orderType,
+      });
+    } else {
+      console.log(
+        '[Order Dispatch] No delivery alert email recipients configured or email alerts disabled.'
+      );
+    }
+
+    if (settings?.notifyCustomer !== false && order.email) {
+      await sendOrderConfirmationCustomerEmail({
+        order,
+        orderType,
+      });
+    }
+  } catch (err) {
+    console.error('[Order Notification Dispatch Error]:', err.message);
+  }
+};
 
 // ── Order Schema (inline for simplicity) ─────────────
 const orderSchema = new mongoose.Schema({
@@ -239,6 +279,11 @@ router.post('/verify', async (req, res) => {
         console.error("Failed to automatically deduct product stock:", stockErr);
       }
 
+      // ── Send Order Notification Email to configured Admin Delivery Recipients ──
+      dispatchOrderNotifications(newOrder, 'Online Payment (Razorpay)').catch((err) => {
+        console.error('Failed to dispatch online order notification emails:', err);
+      });
+
       res.status(200).json({ success: true, message: "Payment verified successfully", order: newOrder });
     } else {
       res.status(400).json({ success: false, message: "Invalid payment signature" });
@@ -337,6 +382,11 @@ router.post('/checkout-cod', async (req, res) => {
     } catch (stockErr) {
       console.error("Failed to automatically deduct product stock for COD:", stockErr);
     }
+
+    // ── Send Order Notification Email to configured Admin Delivery Recipients ──
+    dispatchOrderNotifications(newOrder, 'Cash on Delivery (COD)').catch((err) => {
+      console.error('Failed to dispatch COD order notification emails:', err);
+    });
 
     res.status(200).json({ success: true, message: "COD Order placed successfully", order: newOrder });
   } catch (error) {
@@ -700,6 +750,142 @@ Provide a direct, helpful, professional, and voice-friendly response.`;
   } catch (err) {
     console.error('AI Delivery ask failed:', err);
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ORDER NOTIFICATION EMAIL SETTINGS (DELIVERY OPERATIONS)
+// ════════════════════════════════════════════════════════════════
+
+// GET /api/payment/delivery-notifications
+// Get configured notification recipient emails and alert preferences
+router.get('/delivery-notifications', roleGuard(['admin', 'editor', 'support']), async (req, res) => {
+  try {
+    let settings = await DeliverySettings.findOne({ key: 'global_delivery_settings' });
+    if (!settings) {
+      settings = await DeliverySettings.create({
+        key: 'global_delivery_settings',
+        notificationEmails: [],
+        emailAlertsEnabled: true,
+        notifyCustomer: true,
+        lastUpdatedBy: 'System',
+      });
+    }
+    res.json({
+      success: true,
+      settings: {
+        notificationEmails: settings.notificationEmails || [],
+        emailAlertsEnabled: settings.emailAlertsEnabled !== false,
+        notifyCustomer: settings.notifyCustomer !== false,
+        lastUpdatedBy: settings.lastUpdatedBy,
+        updatedAt: settings.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching delivery notification settings:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch delivery notification settings' });
+  }
+});
+
+// PUT /api/payment/delivery-notifications
+// Update notification recipient emails and toggle preferences
+router.put('/delivery-notifications', roleGuard(['admin', 'editor', 'support']), async (req, res) => {
+  try {
+    const { notificationEmails = [], emailAlertsEnabled = true, notifyCustomer = true } = req.body;
+
+    // Validate and sanitize emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanEmails = [...new Set(
+      (Array.isArray(notificationEmails) ? notificationEmails : [notificationEmails])
+        .map((e) => String(e || '').trim().toLowerCase())
+        .filter((e) => emailRegex.test(e))
+    )];
+
+    const updated = await DeliverySettings.findOneAndUpdate(
+      { key: 'global_delivery_settings' },
+      {
+        $set: {
+          notificationEmails: cleanEmails,
+          emailAlertsEnabled: Boolean(emailAlertsEnabled),
+          notifyCustomer: Boolean(notifyCustomer),
+          lastUpdatedBy: req.user?.email || 'Admin',
+        },
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Delivery notification emails updated successfully!',
+      settings: {
+        notificationEmails: updated.notificationEmails,
+        emailAlertsEnabled: updated.emailAlertsEnabled,
+        notifyCustomer: updated.notifyCustomer,
+        lastUpdatedBy: updated.lastUpdatedBy,
+        updatedAt: updated.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error('Error updating delivery notification settings:', err);
+    res.status(500).json({ success: false, message: 'Failed to update delivery notification settings' });
+  }
+});
+
+// POST /api/payment/delivery-notifications/test-email
+// Send a test order alert to configured or specified email address
+router.post('/delivery-notifications/test-email', roleGuard(['admin', 'editor', 'support']), async (req, res) => {
+  try {
+    const { testEmail } = req.body;
+    let recipients = [];
+    if (testEmail && testEmail.trim()) {
+      recipients = [testEmail.trim().toLowerCase()];
+    } else {
+      const settings = await DeliverySettings.findOne({ key: 'global_delivery_settings' });
+      recipients = settings?.notificationEmails || [];
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    recipients = recipients.filter((e) => emailRegex.test(e));
+
+    if (recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No recipient email configured. Please enter or add an email address first.',
+      });
+    }
+
+    const testOrder = {
+      _id: new mongoose.Types.ObjectId(),
+      razorpayOrderId: 'TEST-ORD-' + Math.floor(100000 + Math.random() * 900000),
+      razorpayPaymentId: 'pay_test_' + Math.floor(100000 + Math.random() * 900000),
+      email: 'customer.sample@nilex.in',
+      totalAmount: 2499,
+      carrier: 'Delhivery Express',
+      trackingId: 'NIX-DEL-' + Math.floor(10000000 + Math.random() * 90000000) + '-IN',
+      shippingAddress: 'Flat 402, Lotus Residency, Indiranagar, Bengaluru, Karnataka 560038',
+      deliveryStatus: 'Confirmed',
+      status: 'Paid',
+      createdAt: new Date(),
+      items: [
+        { productName: 'Wireless Active Noise-Cancelling Headphones', qty: 1, price: 1999, selectedSize: 'Black' },
+        { productName: 'Braided Type-C Fast Charge Cable (1.5m)', qty: 1, price: 500, selectedSize: 'Standard' },
+      ],
+    };
+
+    const result = await sendOrderNotificationEmail({
+      order: testOrder,
+      recipients,
+      orderType: 'Test Order Simulation',
+    });
+
+    res.json({
+      success: true,
+      message: `Test order notification email successfully sent to: ${recipients.join(', ')}`,
+      result,
+    });
+  } catch (err) {
+    console.error('Error sending test delivery notification email:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to send test email' });
   }
 });
 
