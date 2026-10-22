@@ -2,19 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import roleGuard from '../middleware/roleGuard.js';
-
+import { User } from '../models/index.js';
 
 const router = express.Router();
-
-// ── User Schema (inline for simplicity) ─────────────
-const userSchema = new mongoose.Schema({
-  name:     { type: String, required: true, trim: true },
-  email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
-  role:     { type: String, enum: ['user', 'admin', 'editor', 'support'], default: 'user' },
-}, { timestamps: true });
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // ── GET all users (admin only) ───────────────────────
 router.get('/', roleGuard(['admin']), async (req, res, next) => {

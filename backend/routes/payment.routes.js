@@ -4,7 +4,19 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import roleGuard from '../middleware/roleGuard.js';
 import { generateAICopy, cleanCopyText } from './ai.routes.js';
-import DeliverySettings from '../models/DeliverySettings.js';
+import {
+  Order,
+  OrderItem,
+  Payment,
+  Shipment,
+  TrackingEvent,
+  Address,
+  Product,
+  ProductVariant,
+  StockMovement,
+  User,
+  DeliverySettings,
+} from '../models/index.js';
 import {
   sendOrderNotificationEmail,
   sendOrderConfirmationCustomerEmail,
@@ -47,25 +59,118 @@ const dispatchOrderNotifications = async (order, orderType = 'Online Order') => 
   }
 };
 
-// ── Order Schema (inline for simplicity) ─────────────
-const orderSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  items: { type: Array, required: true },
-  totalAmount: { type: Number, required: true },
-  razorpayOrderId: { type: String, required: true },
-  razorpayPaymentId: { type: String, required: true },
-  status: { type: String, default: 'Paid' },
-  
-  // Delivery & Tracking fields
-  trackingId: { type: String, default: '' },
-  carrier: { type: String, default: '' },
-  shippingAddress: { type: String, default: '123 E-Commerce Way, Suite 100' },
-  deliveryStatus: { type: String, default: 'Processing' }, // Processing, Shipped, In Transit, Out for Delivery, Delivered
-  isManualDelivery: { type: Boolean, default: false },
-  deliveryTimeline: { type: Array, default: [] }
-}, { timestamps: true });
+// ── Helper to dual-write normalized entities (Payment, Shipment, OrderItem, TrackingEvent, Address) ──
+const dualWriteNormalizedOrder = async (order, {
+  method = 'razorpay',
+  razorpayOrderId = '',
+  razorpayPaymentId = '',
+  paymentStatus = 'captured',
+  carrier = 'Delhivery Express',
+  trackingId = '',
+  shippingAddress = '',
+}) => {
+  try {
+    // 1. Normalized Payment record
+    await Payment.findOneAndUpdate(
+      { orderId: order._id },
+      {
+        $setOnInsert: {
+          orderId: order._id,
+          method,
+          razorpayOrderId: razorpayOrderId || order.razorpayOrderId,
+          razorpayPaymentId: razorpayPaymentId || order.razorpayPaymentId,
+          amount: order.totalAmount,
+          currency: 'INR',
+          status: paymentStatus,
+        },
+      },
+      { upsert: true }
+    );
 
-const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
+    // 2. Normalized Shipment record
+    const shipment = await Shipment.findOneAndUpdate(
+      { orderId: order._id },
+      {
+        $set: {
+          carrier: carrier || order.carrier || 'Delhivery Express',
+          trackingId: trackingId || order.trackingId,
+          deliveryStatus: order.deliveryStatus || 'Confirmed',
+          shippingAddress: shippingAddress || order.shippingAddress,
+        },
+        $setOnInsert: { orderId: order._id },
+      },
+      { upsert: true, new: true }
+    );
+
+    // 3. Initial Tracking Event
+    const existingEvents = await TrackingEvent.countDocuments({ orderId: order._id });
+    if (existingEvents === 0 && shipment) {
+      await TrackingEvent.create({
+        shipmentId: shipment._id,
+        orderId: order._id,
+        milestone: 'Order Confirmed',
+        note: 'Order confirmed and registered for dispatch.',
+        occurredAt: order.createdAt || new Date(),
+      });
+    }
+
+    // 4. Normalized OrderItems
+    const existingItems = await OrderItem.countDocuments({ orderId: order._id });
+    if (existingItems === 0 && Array.isArray(order.items)) {
+      for (const item of order.items) {
+        const pId = item._id || item.id;
+        let variantId = null;
+        if (item.selectedSize && pId && mongoose.isValidObjectId(pId)) {
+          const v = await ProductVariant.findOne({ productId: pId, size: item.selectedSize });
+          if (v) variantId = v._id;
+        }
+
+        await OrderItem.create({
+          orderId: order._id,
+          productId: pId && mongoose.isValidObjectId(pId) ? pId : null,
+          variantId,
+          productName: item.productName || item.name || 'Product',
+          unitPrice: Number(item.price || 0),
+          qty: Number(item.qty || 1),
+          selectedSize: item.selectedSize || '',
+          imgUrl: item.imgUrl || '',
+        });
+      }
+    }
+
+    // 5. Link/Extract Address if valid
+    if (order.email && order.shippingAddress && order.shippingAddress.length > 10) {
+      const existingAddr = await Address.findOne({
+        userEmail: order.email.toLowerCase().trim(),
+        line1: order.shippingAddress.slice(0, 40),
+      });
+
+      if (!existingAddr) {
+        const user = await User.findOne({ email: order.email.toLowerCase().trim() });
+        const parts = order.shippingAddress.split(',').map((p) => p.trim());
+        const city = parts.length > 2 ? parts[parts.length - 2] : 'City';
+        const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
+
+        await Address.create({
+          userId: user ? user._id : null,
+          userEmail: order.email.toLowerCase().trim(),
+          label: 'home',
+          fullName: user ? user.name : order.email.split('@')[0],
+          phone: '9999999999',
+          line1: parts[0] || order.shippingAddress,
+          line2: parts.slice(1, 3).join(', '),
+          city: city || 'City',
+          state: 'State',
+          pincode: pincodeMatch ? pincodeMatch[0] : '110001',
+          country: 'IN',
+          isDefault: true,
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[Dual-Write Error]:', err.message);
+  }
+};
 
 // Initialize Razorpay instance
 // It's safe to define this lazily or handle missing keys gracefully for dev
@@ -274,10 +379,28 @@ router.post('/verify', async (req, res) => {
               updatedBy: email || 'System'
             });
           }
+          // Also update ProductVariant stock if size is chosen
+          if (item.selectedSize && pId && mongoose.isValidObjectId(pId)) {
+            await ProductVariant.findOneAndUpdate(
+              { productId: pId, size: item.selectedSize },
+              { $inc: { stock: -qtyPurchased } }
+            );
+          }
         }
       } catch (stockErr) {
         console.error("Failed to automatically deduct product stock:", stockErr);
       }
+
+      // ── Dual-write normalized entities (Payment, Shipment, TrackingEvent, OrderItems) ──
+      dualWriteNormalizedOrder(newOrder, {
+        method: 'razorpay',
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        paymentStatus: 'captured',
+        carrier: chosenCarrier,
+        trackingId: randomTrackingId,
+        shippingAddress: address,
+      }).catch((err) => console.error('Async dual-write failed:', err));
 
       // ── Send Order Notification Email to configured Admin Delivery Recipients ──
       dispatchOrderNotifications(newOrder, 'Online Payment (Razorpay)').catch((err) => {
@@ -377,11 +500,29 @@ router.post('/checkout-cod', async (req, res) => {
             reason: `Customer COD purchase (Order #${newOrder.razorpayOrderId})`,
             updatedBy: email || 'System'
           });
+          // Also update ProductVariant stock if size is chosen
+          if (item.selectedSize && pId && mongoose.isValidObjectId(pId)) {
+            await ProductVariant.findOneAndUpdate(
+              { productId: pId, size: item.selectedSize },
+              { $inc: { stock: -qtyPurchased } }
+            );
+          }
         }
       }
     } catch (stockErr) {
       console.error("Failed to automatically deduct product stock for COD:", stockErr);
     }
+
+    // ── Dual-write normalized entities (Payment, Shipment, TrackingEvent, OrderItems) ──
+    dualWriteNormalizedOrder(newOrder, {
+      method: 'cod',
+      razorpayOrderId: newOrder.razorpayOrderId,
+      razorpayPaymentId: 'COD',
+      paymentStatus: 'Pending Cash',
+      carrier: chosenCarrier,
+      trackingId: randomTrackingId,
+      shippingAddress: address,
+    }).catch((err) => console.error('Async dual-write failed:', err));
 
     // ── Send Order Notification Email to configured Admin Delivery Recipients ──
     dispatchOrderNotifications(newOrder, 'Cash on Delivery (COD)').catch((err) => {
@@ -513,6 +654,34 @@ router.patch('/orders/:id/delivery', roleGuard(['admin', 'editor', 'support']), 
     }
 
     await order.save();
+
+    // ── Also sync normalized Shipment and TrackingEvent ──
+    try {
+      const shipment = await Shipment.findOneAndUpdate(
+        { orderId: order._id },
+        {
+          $set: {
+            carrier: order.carrier,
+            trackingId: order.trackingId,
+            deliveryStatus: order.deliveryStatus,
+            shippingAddress: order.shippingAddress,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      if (deliveryStatus !== undefined) {
+        await TrackingEvent.create({
+          shipmentId: shipment._id,
+          orderId: order._id,
+          milestone: labels[deliveryStatus] || deliveryStatus,
+          note: descriptions[deliveryStatus] || `Order shipment status updated to ${deliveryStatus}`,
+          occurredAt: new Date(),
+        });
+      }
+    } catch (shipErr) {
+      console.error('Failed to sync shipment tracking event:', shipErr.message);
+    }
 
     // Re-fetch enriched order details to return
     const enrichedOrder = order.toObject();

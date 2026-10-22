@@ -3,50 +3,56 @@ import mongoose from 'mongoose';
 import { upload, cloudinary } from '../config/cloudinary.js';
 import roleGuard from '../middleware/roleGuard.js';
 import { generateAICopy } from './ai.routes.js';
+import { Product, ProductVariant, StockMovement, Category } from '../models/index.js';
 
 const router = express.Router();
 
-// ── Product Schema ──────────────────────────────────
-const productSchema = new mongoose.Schema(
-  {
-    productName:  { type: String, required: true, trim: true },
-    category:     { type: String, required: true, trim: true },
-    sizes:        { type: [String], default: [] },
-    sizeStock:    { type: Map, of: Number, default: {} },  // per-size stock e.g. { S:10, M:5 }
-    price:        { type: Number, required: true, min: 0 },
-    discount:     { type: Number, default: 0, min: 0, max: 100 },
-    stock:        { type: Number, default: 0, min: 0 },   // total (auto-sum of sizeStock when set)
-    shortDesc:    { type: String, default: '' },
-    description:  { type: String, default: '' },
-    imgUrl:       { type: String, default: '' },
-    publicId:     { type: String, default: '' },
-    avgRating:    { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
+// ── Helper to synchronize ProductVariant records from Product sizes and stock ──
+const syncProductVariants = async (product) => {
+  try {
+    const sizes = Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : ['Standard'];
+    const sizeStock = product.sizeStock || new Map();
 
-const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
+    for (const size of sizes) {
+      let stock = 0;
+      if (sizeStock instanceof Map) {
+        stock = sizeStock.get(size) || 0;
+      } else if (typeof sizeStock === 'object' && sizeStock !== null) {
+        stock = sizeStock[size] || 0;
+      }
+      if (stock === 0 && sizes.length === 1 && product.stock > 0) {
+        stock = product.stock;
+      }
 
-// ── Stock Movement Schema ───────────────────────────
-const stockMovementSchema = new mongoose.Schema(
-  {
-    productId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-    productName: { type: String, required: true },
-    changeQty:   { type: Number, required: true }, // positive for addition, negative for deduction
-    newStock:    { type: Number, required: true },
-    type:        { type: String, enum: ['in', 'out', 'adjustment'], required: true },
-    reason:      { type: String, default: 'Manual adjustment' },
-    updatedBy:   { type: String, default: 'Admin' },
-  },
-  { timestamps: true }
-);
+      const cleanSlug = (product.productName || 'PROD')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 8)
+        .toUpperCase();
+      const sku = `SKU-${cleanSlug}-${size.replace(/\s+/g, '').toUpperCase()}`;
 
-const StockMovement = mongoose.models.StockMovement || mongoose.model('StockMovement', stockMovementSchema);
+      await ProductVariant.findOneAndUpdate(
+        { productId: product._id, size },
+        {
+          $set: {
+            stock,
+            price: product.price,
+          },
+          $setOnInsert: { sku },
+        },
+        { upsert: true, new: true }
+      );
+    }
+  } catch (err) {
+    console.error('Error syncing product variants:', err.message);
+  }
+};
 
-const logStockMovement = async (productId, productName, changeQty, newStock, type, reason, updatedBy = 'Admin') => {
+const logStockMovement = async (productId, productName, changeQty, newStock, type, reason, updatedBy = 'Admin', variantId = null) => {
   try {
     await StockMovement.create({
       productId,
+      variantId,
       productName,
       changeQty,
       newStock,
@@ -441,6 +447,9 @@ router.post('/', roleGuard(['admin', 'editor']), upload.single('image'), async (
       await logStockMovement(product._id, product.productName, product.stock, product.stock, 'in', 'Initial stock intake');
     }
 
+    // Sync ProductVariant normalized records
+    await syncProductVariants(product);
+
     res.status(201).json({ success: true, data: product });
   } catch (err) { next(err); }
 });
@@ -496,7 +505,18 @@ router.put('/:id', roleGuard(['admin', 'editor']), upload.single('image'), async
       await logStockMovement(product._id, product.productName, diff, newStock, type, reason, req.body.updatedBy || 'Admin');
     }
 
+    // Sync ProductVariant normalized records
+    await syncProductVariants(product);
+
     res.json({ success: true, data: product });
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/products/:id/variants — get normalized variants for a product ──
+router.get('/:id/variants', async (req, res, next) => {
+  try {
+    const variants = await ProductVariant.find({ productId: req.params.id }).sort({ size: 1 });
+    res.json({ success: true, count: variants.length, data: variants });
   } catch (err) { next(err); }
 });
 

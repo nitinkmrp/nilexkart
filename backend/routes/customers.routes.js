@@ -1,26 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import roleGuard from '../middleware/roleGuard.js';
+import { Customer, Bill } from '../models/index.js';
 
 const router = express.Router();
 
-// ── Customer Profile Schema ────────────────────────────
-const customerSchema = new mongoose.Schema(
-  {
-    name:    { type: String, required: true, trim: true },
-    mobile:  { type: String, required: true, trim: true },
-    email:   { type: String, default: '', trim: true, lowercase: true },
-    address: { type: String, default: '' },
-    notes:   { type: String, default: '' },
-  },
-  { timestamps: true }
-);
-
-const Customer = mongoose.models.Customer || mongoose.model('Customer', customerSchema);
-
-// Re-use the Bill model (already registered in bills.routes.js)
-// We read it lazily so that registration order doesn't matter
-const getBillModel = () => mongoose.models.Bill;
+const getBillModel = () => Bill;
 
 // ── GET /api/customers — list all customers ─────────────
 router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {

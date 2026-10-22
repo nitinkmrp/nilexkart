@@ -2,49 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { upload, cloudinary } from '../config/cloudinary.js';
 import roleGuard from '../middleware/roleGuard.js';
+import { Bill, Customer } from '../models/index.js';
 
 const router = express.Router();
-
-// ── Bill / Transaction Schema ─────────────────────────
-const billSchema = new mongoose.Schema(
-  {
-    // Who made the transaction
-    customerName:  { type: String, required: true, trim: true },
-    customerEmail: { type: String, required: true, trim: true, lowercase: true },
-    customerPhone: { type: String, default: '' },
-
-    // Transaction details
-    txnId:         { type: String, default: '' },          // Razorpay / manual ref
-    amount:        { type: Number, required: true, min: 0 },
-    paymentMethod: { type: String, enum: ['online', 'cash', 'upi', 'card'], default: 'cash' },
-    status:        { type: String, enum: ['paid', 'pending', 'authorized', 'cancelled'], default: 'paid' },
-
-    // Items snapshot (array of { name, qty, price })
-    items: { type: Array, default: [] },
-
-    // Who handled the payment
-    receivedBy:   { type: String, default: '' },   // staff / admin name
-    notes:        { type: String, default: '' },
-
-    // Cash authorization
-    cashAuthorized:    { type: Boolean, default: false },
-    cashAuthorizedBy:  { type: String, default: '' },
-    cashAuthorizedAt:  { type: Date, default: null },
-
-    // Receipt snapshot (Cloudinary)
-    receiptUrl:  { type: String, default: '' },
-    receiptPublicId: { type: String, default: '' },
-
-    // Transaction Type
-    txnType: { type: String, enum: ['receive', 'give'], default: 'receive' },
-
-    // Transaction date (can be back-dated for manual entries)
-    txnDate: { type: Date, default: Date.now },
-  },
-  { timestamps: true }
-);
-
-const Bill = mongoose.models.Bill || mongoose.model('Bill', billSchema);
 
 // ── GET /api/bills — list all bills ─────────────────────
 router.get('/', roleGuard(['admin', 'editor', 'support']), async (req, res, next) => {

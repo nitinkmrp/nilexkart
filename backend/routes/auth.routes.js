@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import Otp from '../models/Otp.js';
+import { User, Otp } from '../models/index.js';
 import { isAllowedDomain, generateOtp } from '../utils/authHelpers.js';
 import { sendAuthEmail } from '../utils/emailService.js';
 
@@ -26,17 +26,8 @@ const loginLimiter = rateLimit({
   message: { success: false, message: 'Too many login attempts. Please wait 15 minutes.' },
 });
 
-// Helper to safely get the User model
-const getUserModel = () => {
-  if (mongoose.models.User) return mongoose.models.User;
-  const userSchema = new mongoose.Schema({
-    name:     { type: String, required: true, trim: true },
-    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
-    role:     { type: String, enum: ['user', 'admin', 'editor', 'support'], default: 'user' },
-  }, { timestamps: true });
-  return mongoose.model('User', userSchema);
-};
+// Reference centralized User model
+const getUserModel = () => User;
 
 
 // ── Login route (rate limited: 15 attempts per 15 min) ───────

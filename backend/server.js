@@ -14,6 +14,7 @@ import customerRoutes  from './routes/customers.routes.js';
 import aiRoutes        from './routes/ai.routes.js';
 import authRoutes      from './routes/auth.routes.js';
 import adminRoutes     from './routes/admin.routes.js';
+import addressRoutes   from './routes/address.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -160,6 +161,7 @@ app.use('/api/customers',  customerRoutes);
 app.use('/api/ai',         aiRoutes);
 app.use('/api/auth',       authRoutes);
 app.use('/api/admin',      adminRoutes);
+app.use('/api/address',    addressRoutes);
 
 // ── Health check ────────────────────────────────────
 app.get('/health', (req, res) => {

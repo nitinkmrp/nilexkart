@@ -1,25 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import { Waitlist } from '../models/index.js';
 
 const router = express.Router();
-
-// ── Waitlist Schema ─────────────────────────────────
-const waitlistSchema = new mongoose.Schema(
-  {
-    userEmail:   { type: String, required: true, lowercase: true, trim: true },
-    productId:   { type: String, required: true },
-    productName: { type: String, required: true },
-    productImage:{ type: String, default: '' },
-    price:       { type: Number, default: 0 },
-    status:      { type: String, enum: ['Out of Stock', 'Back in Stock'], default: 'Out of Stock' },
-  },
-  { timestamps: true }
-);
-
-// Prevent duplicate entries for same user + product
-waitlistSchema.index({ userEmail: 1, productId: 1 }, { unique: true });
-
-const Waitlist = mongoose.models.Waitlist || mongoose.model('Waitlist', waitlistSchema);
 
 // ── GET /api/waitlist/:email — fetch all waitlist items for a user ──
 router.get('/:email', async (req, res, next) => {

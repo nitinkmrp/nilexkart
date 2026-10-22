@@ -1,22 +1,9 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import roleGuard from '../middleware/roleGuard.js';
+import { Category } from '../models/index.js';
 
 const router = express.Router();
-
-// ── Category Schema ──────────────────────────────────
-const categorySchema = new mongoose.Schema(
-  {
-    name:        { type: String, required: true, trim: true, unique: true },
-    slug:        { type: String, required: true, trim: true, unique: true, lowercase: true },
-    description: { type: String, default: '' },
-    icon:        { type: String, default: '📦' },   // emoji or icon class
-    isActive:    { type: Boolean, default: true },
-  },
-  { timestamps: true }
-);
-
-const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
 
 // ── GET /api/categories — list all categories ────────
 router.get('/', async (req, res, next) => {
